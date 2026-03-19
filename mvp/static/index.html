@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentBox - Cloud File Storage for Agents</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card h2 {
+            color: #00d4ff;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+        }
+
+        .token-display {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .token-display code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            color: #4ade80;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .storage-bar {
+            margin-top: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .storage-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #4ade80);
+            transition: width 0.3s;
+        }
+
+        .storage-text {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        button {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.secondary {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        button.danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(0, 212, 255, 0.3);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s, background 0.3s;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .upload-zone p {
+            color: #888;
+            margin-bottom: 12px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 12px;
+        }
+
+        .search-box input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 12px 16px;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .file-list {
+            margin-top: 16px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+
+        .file-icon {
+            font-size: 1.5rem;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .file-meta {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .file-actions button {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        .search-result {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 3px solid #00d4ff;
+        }
+
+        .search-result .score {
+            color: #4ade80;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+
+        .search-result .matched-text {
+            font-size: 0.9rem;
+            color: #aaa;
+            font-style: italic;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AgentBox</h1>
+            <p>Cloud File Storage for Agents</p>
+        </header>
+
+        <!-- Token Section -->
+        <div class="card" id="tokenCard">
+            <h2>Your Token</h2>
+            <div id="noToken">
+                <p style="color: #888; margin-bottom: 16px;">Get a free token to start uploading files (10 MB storage)</p>
+                <button onclick="getToken()">Get Free Token</button>
+            </div>
+            <div id="hasToken" class="hidden">
+                <div class="token-display">
+                    <code id="tokenValue"></code>
+                    <button class="secondary" onclick="copyToken()">Copy</button>
+                    <button class="secondary" onclick="clearToken()">Reset</button>
+                </div>
+                <div class="storage-bar">
+                    <div class="storage-bar-fill" id="storageBar" style="width: 0%"></div>
+                </div>
+                <div class="storage-text" id="storageText">0 B / 10 MB used</div>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="card" id="uploadCard">
+            <h2>Upload Files</h2>
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                <p>Drag & drop files here or click to browse</p>
+                <button>Choose Files</button>
+            </div>
+            <input type="file" id="fileInput" multiple onchange="handleFiles(this.files)">
+        </div>
+
+        <!-- Search Section -->
+        <div class="card">
+            <h2>Semantic Search</h2>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search your files by meaning..." onkeypress="if(event.key==='Enter')search()">
+                <button onclick="search()">Search</button>
+            </div>
+            <div id="searchResults" class="file-list"></div>
+        </div>
+
+        <!-- Files Section -->
+        <div class="card">
+            <h2>Your Files</h2>
+            <div id="fileList" class="file-list">
+                <div class="empty-state">No files uploaded yet</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let token = localStorage.getItem('agentbox_token');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            if (token) {
+                showToken();
+                loadFiles();
+            }
+            setupDragDrop();
+        });
+
+        function setupDragDrop() {
+            const zone = document.getElementById('uploadZone');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+                zone.addEventListener(event, e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+
+            ['dragenter', 'dragover'].forEach(event => {
+                zone.addEventListener(event, () => zone.classList.add('dragover'));
+            });
+
+            ['dragleave', 'drop'].forEach(event => {
+                zone.addEventListener(event, () => zone.classList.remove('dragover'));
+            });
+
+            zone.addEventListener('drop', e => {
+                handleFiles(e.dataTransfer.files);
+            });
+        }
+
+        async function getToken() {
+            try {
+                const res = await fetch(`${API_URL}/get_token`, { method: 'POST' });
+                const data = await res.json();
+                token = data.token;
+                localStorage.setItem('agentbox_token', token);
+                showToken();
+                updateStorage(data.storage_used_bytes, data.storage_limit_bytes);
+                notify('Token created successfully!', 'success');
+            } catch (err) {
+                notify('Failed to get token', 'error');
+            }
+        }
+
+        function showToken() {
+            document.getElementById('noToken').classList.add('hidden');
+            document.getElementById('hasToken').classList.remove('hidden');
+            document.getElementById('tokenValue').textContent = token;
+        }
+
+        function copyToken() {
+            navigator.clipboard.writeText(token);
+            notify('Token copied!', 'success');
+        }
+
+        function clearToken() {
+            localStorage.removeItem('agentbox_token');
+            token = null;
+            document.getElementById('noToken').classList.remove('hidden');
+            document.getElementById('hasToken').classList.add('hidden');
+            document.getElementById('fileList').innerHTML = '<div class="empty-state">No files uploaded yet</div>';
+        }
+
+        function updateStorage(used, limit) {
+            const percent = (used / limit) * 100;
+            document.getElementById('storageBar').style.width = `${percent}%`;
+            document.getElementById('storageText').textContent = `${formatBytes(used)} / ${formatBytes(limit)} used`;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        async function handleFiles(files) {
+            if (!token) {
+                notify('Please get a token first', 'error');
+                return;
+            }
+
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const res = await fetch(`${API_URL}/files/upload`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+
+                    if (res.ok) {
+                        notify(`Uploaded ${file.name}`, 'success');
+                    } else {
+                        const err = await res.json();
+                        notify(err.detail || 'Upload failed', 'error');
+                    }
+                } catch (err) {
+                    notify('Upload failed', 'error');
+                }
+            }
+            loadFiles();
+        }
+
+        async function loadFiles() {
+            if (!token) return;
+
+            try {
+                const res = await fetch(`${API_URL}/files`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                const container = document.getElementById('fileList');
+                if (data.files.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No files uploaded yet</div>';
+                    return;
+                }
+
+                let totalSize = 0;
+                container.innerHTML = data.files.map(f => {
+                    totalSize += f.size_bytes;
+                    return `
+                        <div class="file-item">
+                            <div class="file-icon">${getFileIcon(f.content_type)}</div>
+                            <div class="file-info">
+                                <div class="file-name">${f.filename}</div>
+                                <div class="file-meta">${formatBytes(f.size_bytes)} &bull; ${f.content_type}</div>
+                            </div>
+                            <div class="file-actions">
+                                <button class="secondary" onclick="downloadFile('${f.id}', '${f.filename}')">Download</button>
+                                <button class="danger" onclick="deleteFile('${f.id}')">Delete</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                updateStorage(totalSize, 10 * 1024 * 1024);
+            } catch (err) {
+                notify('Failed to load files', 'error');
+            }
+        }
+
+        function getFileIcon(type) {
+            if (type.startsWith('image/')) return '🖼️';
+            if (type.startsWith('text/')) return '📄';
+            if (type.includes('pdf')) return '📕';
+            if (type.includes('json')) return '📋';
+            return '📁';
+        }
+
+        async function downloadFile(id, filename) {
+            try {
+                const res = await fetch(`${API_URL}/files/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                notify('Download failed', 'error');
+            }
+        }
+
+        async function deleteFile(id) {
+            if (!confirm('Delete this file?')) return;
+
+            try {
+                await fetch(`${API_URL}/files/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                notify('File deleted', 'success');
+                loadFiles();
+            } catch (err) {
+                notify('Delete failed', 'error');
+            }
+        }
+
+        async function search() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+            if (!token) {
+                notify('Please get a token first', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query, limit: 10 })
+                });
+
+                const data = await res.json();
+                const container = document.getElementById('searchResults');
+
+                if (!res.ok) {
+                    container.innerHTML = `<div class="empty-state">${data.detail || 'Search failed'}</div>`;
+                    return;
+                }
+
+                if (data.results.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No matching files found</div>';
+                    return;
+                }
+
+                container.innerHTML = data.results.map(r => `
+                    <div class="search-result">
+                        <div class="file-name">${r.filename}</div>
+                        <div class="score">Relevance: ${(r.relevance_score * 100).toFixed(1)}%</div>
+                        <div class="matched-text">"${r.matched_chunk}"</div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                notify('Search failed', 'error');
+            }
+        }
+
+        function notify(message, type) {
+            const div = document.createElement('div');
+            div.className = `notification ${type}`;
+            div.textContent = message;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+    </script>
+</body>
+</html>

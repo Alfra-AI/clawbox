@@ -1,0 +1,11 @@
+aws_region     = "us-east-1"
+environment    = "prod"
+app_name       = "agentbox"
+db_username    = "agentbox"
+db_password    = "your-secure-password-here"
+openai_api_key = "sk-your-openai-api-key"
+
+# Optional: adjust resources
+container_cpu    = 256
+container_memory = 512
+desired_count    = 1
