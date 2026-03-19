@@ -24,7 +24,13 @@ dependencies = [
     "pydantic-settings>=2.1.0",
     "python-jose[cryptography]>=3.3.0",
     "aiofiles>=23.2.1",
+    "typer>=0.9.0",
+    "httpx>=0.25.0",
+    "rich>=13.0.0",
 ]
+
+[project.scripts]
+agentbox = "mvp.cli:app"
 
 [project.optional-dependencies]
 dev = [
