@@ -1,12 +1,18 @@
 """Main FastAPI application for AgentBox."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from mvp import __version__
 from mvp.database import init_db
 from mvp.routes import files, search, tokens
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 @asynccontextmanager
@@ -25,10 +31,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include routers
 app.include_router(tokens.router)
 app.include_router(files.router)
 app.include_router(search.router)
+
+
+@app.get("/")
+async def index():
+    """Serve the web UI."""
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health")
