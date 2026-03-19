@@ -3,9 +3,13 @@
 import os
 import shutil
 from abc import ABC, abstractmethod
+from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
 from uuid import UUID
+
+import boto3
+from botocore.exceptions import ClientError
 
 from mvp.config import settings
 
@@ -81,9 +85,80 @@ class LocalStorageBackend(StorageBackend):
         return file_path.exists()
 
 
+class S3StorageBackend(StorageBackend):
+    """AWS S3 storage backend."""
+
+    def __init__(
+        self,
+        bucket_name: str | None = None,
+        region: str | None = None,
+    ):
+        self.bucket_name = bucket_name or settings.s3_bucket_name
+        self.region = region or settings.aws_region
+
+        self.s3_client = boto3.client(
+            "s3",
+            region_name=self.region,
+            aws_access_key_id=settings.aws_access_key_id or None,
+            aws_secret_access_key=settings.aws_secret_access_key or None,
+        )
+
+    def _get_s3_key(self, token_id: UUID, file_id: UUID, filename: str) -> str:
+        """Generate S3 key for a file."""
+        return f"{token_id}/{file_id}_{filename}"
+
+    async def save(self, token_id: UUID, file_id: UUID, file_data: BinaryIO, filename: str) -> str:
+        """Save a file to S3."""
+        s3_key = self._get_s3_key(token_id, file_id, filename)
+
+        self.s3_client.upload_fileobj(
+            file_data,
+            self.bucket_name,
+            s3_key,
+        )
+
+        return s3_key
+
+    async def load(self, storage_path: str) -> bytes:
+        """Load a file from S3."""
+        try:
+            response = self.s3_client.get_object(
+                Bucket=self.bucket_name,
+                Key=storage_path,
+            )
+            return response["Body"].read()
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchKey":
+                raise FileNotFoundError(f"File not found: {storage_path}")
+            raise
+
+    async def delete(self, storage_path: str) -> None:
+        """Delete a file from S3."""
+        try:
+            self.s3_client.delete_object(
+                Bucket=self.bucket_name,
+                Key=storage_path,
+            )
+        except ClientError:
+            pass  # Ignore errors on delete
+
+    async def exists(self, storage_path: str) -> bool:
+        """Check if a file exists in S3."""
+        try:
+            self.s3_client.head_object(
+                Bucket=self.bucket_name,
+                Key=storage_path,
+            )
+            return True
+        except ClientError:
+            return False
+
+
 def get_storage_backend() -> StorageBackend:
     """Get the configured storage backend."""
     if settings.storage_backend == "local":
         return LocalStorageBackend()
+    elif settings.storage_backend == "s3":
+        return S3StorageBackend()
     else:
         raise ValueError(f"Unknown storage backend: {settings.storage_backend}")

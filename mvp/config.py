@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     storage_backend: str = "local"  # "local" or "s3"
     local_storage_path: Path = Path("./data")
 
+    # AWS / S3
+    aws_region: str = "us-east-1"
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    s3_bucket_name: str = ""
+
     # Token settings
     default_storage_limit_bytes: int = 10 * 1024 * 1024  # 10 MB
 
