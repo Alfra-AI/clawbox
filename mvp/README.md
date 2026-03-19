@@ -1,8 +1,26 @@
 # AgentBox MVP (v0.0)
 
-Local development setup for AgentBox - a minimal cloud file system for agents.
+A minimal cloud file system for agents with semantic search capabilities.
 
-## Prerequisites
+## Features
+
+- **File Storage**: Upload, download, delete any file format
+- **Token-based Auth**: Free tokens with 10MB storage quota
+- **Semantic Search**: Search text files by meaning (requires OpenAI API key)
+- **Web UI**: Browser-based interface for file management
+
+### Supported File Formats
+
+| Operation | Supported Formats |
+|-----------|-------------------|
+| Upload/Download | All formats (binary storage) |
+| Semantic Search | Text-based only: `text/*`, `application/json`, `application/xml` |
+
+> **Note**: Images, PDFs, Word docs, and other binary formats can be stored but are NOT indexed for semantic search.
+
+## Local Development
+
+### Prerequisites
 
 - Python 3.10+
 - PostgreSQL 14+ with pgvector extension
@@ -91,3 +109,42 @@ curl -X POST http://localhost:8000/search \
 ## API Docs
 
 Interactive docs at `http://localhost:8000/docs`
+
+## Cloud Deployment (AWS)
+
+The `terraform/` directory contains infrastructure-as-code for deploying to AWS.
+
+### Architecture
+
+- **ECS Fargate**: Serverless container hosting
+- **RDS PostgreSQL**: Managed database with pgvector
+- **S3**: File storage
+- **ALB**: Load balancer
+
+### Deploy
+
+```bash
+cd terraform
+
+# Copy and edit variables
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
+
+# Deploy
+terraform init
+terraform plan
+terraform apply
+
+# Build and push Docker image
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
+docker build -t agentbox ..
+docker tag agentbox:latest <ecr-repo-url>:latest
+docker push <ecr-repo-url>:latest
+
+# Force ECS to pull new image
+aws ecs update-service --cluster agentbox-prod-cluster --service agentbox-prod --force-new-deployment
+```
+
+### Production URL
+
+After deployment, access the app via the ALB DNS name output by Terraform.
