@@ -55,7 +55,7 @@ Use to get a new token and optionally set the API URL.
 
 ```bash
 agentbox init
-agentbox init --api-url http://localhost:8000
+agentbox init --api-url|-u http://localhost:8000
 ```
 
 What it does:
@@ -70,9 +70,9 @@ Use this first when the CLI is unconfigured.
 Use to inspect or set local client configuration.
 
 ```bash
-agentbox config --show
-agentbox config --api-url http://localhost:8000
-agentbox config --token <token>
+agentbox config --show|-s
+agentbox config --api-url|-u http://localhost:8000
+agentbox config --token|-t <token>
 ```
 
 Good practice:
@@ -103,7 +103,7 @@ Use to retrieve a file by id.
 
 ```bash
 agentbox download <file_id>
-agentbox download <file_id> --output ./downloaded.bin
+agentbox download <file_id> --output|-o ./downloaded.bin
 ```
 
 Behavior:
@@ -132,7 +132,7 @@ Deletion is destructive.
 
 ```bash
 agentbox delete <file_id>
-agentbox delete <file_id> --force
+agentbox delete <file_id> --force|-f
 ```
 
 Behavior:
@@ -147,12 +147,13 @@ Use semantic search across stored content.
 
 ```bash
 agentbox search "meeting notes"
-agentbox search "terraform deployment" --limit 5
+agentbox search "terraform deployment" --limit|-n 5
 ```
 
 Behavior:
 - Requires a token
 - Sends a query to `/search`
+- `--limit` controls the maximum number of search results returned (default: 10)
 - Shows score, file id, filename, and a matched text chunk
 - May fail with a message indicating the server lacks an OpenAI API key
 
@@ -169,9 +170,8 @@ agentbox status
 ```
 
 Behavior:
-- Checks `/health`
-- Reports server version when reachable
-- Checks whether the locally configured token appears valid
+- Checks `/health` and reports server version when reachable
+- Validates the configured token by making a test request to `GET /files`
 
 Use this before troubleshooting uploads, downloads, or search.
 
