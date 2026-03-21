@@ -1,6 +1,7 @@
 """Embeddings generation and management using OpenAI."""
 
-from typing import List
+import io
+from typing import List, Optional
 
 from openai import OpenAI
 from sqlalchemy.orm import Session
@@ -11,6 +12,22 @@ from mvp.models import File, FileEmbedding
 # Chunk size for text splitting (in characters)
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
+
+
+def extract_text_from_pdf(content: bytes) -> Optional[str]:
+    """Extract text from PDF content."""
+    try:
+        import pdfplumber
+
+        with pdfplumber.open(io.BytesIO(content)) as pdf:
+            text_parts = []
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_parts.append(page_text)
+            return "\n\n".join(text_parts) if text_parts else None
+    except Exception:
+        return None
 
 
 def get_openai_client() -> OpenAI:
@@ -63,20 +80,28 @@ def generate_embeddings_batch(texts: List[str]) -> List[List[float]]:
     return [item.embedding for item in response.data]
 
 
-async def generate_and_store_embeddings(db: Session, file: File, content: bytes) -> None:
+async def generate_and_store_embeddings(
+    db: Session, file: File, content: bytes, content_type: str
+) -> None:
     """Generate embeddings for file content and store them."""
-    # Decode content to text
-    try:
-        text = content.decode("utf-8")
-    except UnicodeDecodeError:
-        # Try latin-1 as fallback
-        try:
-            text = content.decode("latin-1")
-        except Exception:
-            return  # Can't process this file
+    text = None
 
-    if not text.strip():
-        return  # Empty file
+    # Handle PDF files
+    if content_type == "application/pdf":
+        text = extract_text_from_pdf(content)
+    else:
+        # Decode content to text
+        try:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError:
+            # Try latin-1 as fallback
+            try:
+                text = content.decode("latin-1")
+            except Exception:
+                return  # Can't process this file
+
+    if not text or not text.strip():
+        return  # Empty or unreadable file
 
     # Chunk the text
     chunks = chunk_text(text)

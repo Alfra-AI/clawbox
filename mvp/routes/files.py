@@ -88,11 +88,13 @@ async def upload_file(
     db.commit()
     db.refresh(file_record)
 
-    # Generate embeddings asynchronously for text-based files
-    text_types = ["text/", "application/json", "application/xml"]
-    if any(file_record.content_type.startswith(t) for t in text_types):
+    # Generate embeddings for searchable file types
+    searchable_types = ["text/", "application/json", "application/xml", "application/pdf"]
+    if any(file_record.content_type.startswith(t) for t in searchable_types):
         try:
-            await generate_and_store_embeddings(db, file_record, content)
+            await generate_and_store_embeddings(
+                db, file_record, content, file_record.content_type
+            )
         except Exception:
             # Don't fail upload if embedding generation fails
             pass
