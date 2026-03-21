@@ -1,5 +1,6 @@
 """Embeddings generation and management using OpenAI."""
 
+import logging
 from typing import List
 
 from openai import OpenAI
@@ -7,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from mvp.config import settings
 from mvp.models import File, FileEmbedding
+
+logger = logging.getLogger(__name__)
 
 # Chunk size for text splitting (in characters)
 CHUNK_SIZE = 1000
@@ -63,20 +66,24 @@ def generate_embeddings_batch(texts: List[str]) -> List[List[float]]:
     return [item.embedding for item in response.data]
 
 
-async def generate_and_store_embeddings(db: Session, file: File, content: bytes) -> None:
-    """Generate embeddings for file content and store them."""
+async def generate_and_store_embeddings(db: Session, file: File, content: bytes) -> bool:
+    """Generate embeddings for file content and store them.
+
+    Returns True if embeddings were generated successfully (or file was empty),
+    False if embedding generation failed.
+    """
     # Decode content to text
     try:
         text = content.decode("utf-8")
     except UnicodeDecodeError:
-        # Try latin-1 as fallback
         try:
             text = content.decode("latin-1")
         except Exception:
-            return  # Can't process this file
+            logger.warning("Failed to decode file %s for embedding", file.id)
+            return False
 
     if not text.strip():
-        return  # Empty file
+        return True  # Empty file, nothing to embed
 
     # Chunk the text
     chunks = chunk_text(text)
@@ -85,7 +92,8 @@ async def generate_and_store_embeddings(db: Session, file: File, content: bytes)
     try:
         embeddings = generate_embeddings_batch(chunks)
     except Exception:
-        return  # Embedding generation failed
+        logger.exception("Failed to generate embeddings for file %s", file.id)
+        return False
 
     # Store embeddings
     for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
@@ -97,7 +105,7 @@ async def generate_and_store_embeddings(db: Session, file: File, content: bytes)
         )
         db.add(file_embedding)
 
-    db.commit()
+    return True
 
 
 def search_embeddings(db: Session, token_id: str, query: str, limit: int = 10) -> List[dict]:

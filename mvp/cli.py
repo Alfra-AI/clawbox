@@ -148,6 +148,16 @@ def upload(
         console.print(f"ID: [cyan]{data['id']}[/cyan]")
         console.print(f"Filename: {data['filename']}")
         console.print(f"Size: {data['size_bytes']} bytes")
+        embedding_status = data.get("embedding_status", "not_applicable")
+        if embedding_status == "completed":
+            console.print("[green]Indexed for search[/green]")
+        elif embedding_status == "pending":
+            console.print("[yellow]Indexing pending[/yellow]")
+        elif embedding_status == "failed":
+            console.print(
+                f"[yellow]Embedding failed — file stored but not searchable. "
+                f"Use 'agentbox embed {data['id']}' to retry.[/yellow]"
+            )
     else:
         console.print(f"[red]Upload failed: {response.text}[/red]")
         raise typer.Exit(1)
@@ -200,6 +210,7 @@ def list_files():
         table.add_column("Filename")
         table.add_column("Type")
         table.add_column("Size", justify="right")
+        table.add_column("Indexed")
         table.add_column("Created")
 
         for f in data["files"]:
@@ -211,11 +222,22 @@ def list_files():
 
             created = f["created_at"][:19].replace("T", " ")
 
+            embedding_status = f.get("embedding_status", "not_applicable")
+            if embedding_status == "completed":
+                indexed = "[green]Yes[/green]"
+            elif embedding_status == "pending":
+                indexed = "[yellow]Pending[/yellow]"
+            elif embedding_status == "failed":
+                indexed = "[red]Failed[/red]"
+            else:
+                indexed = "[dim]N/A[/dim]"
+
             table.add_row(
                 f["id"][:8] + "...",
                 f["filename"],
                 f["content_type"],
                 size,
+                indexed,
                 created,
             )
 
@@ -247,6 +269,33 @@ def delete(
         raise typer.Exit(1)
     else:
         console.print(f"[red]Delete failed: {response.text}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def embed(
+    file_id: str = typer.Argument(..., help="File ID to embed"),
+):
+    """Generate or regenerate embeddings for a file."""
+    token = require_token()
+
+    response = api_request("POST", f"/files/{file_id}/embed", token=token)
+
+    if response.status_code == 200:
+        data = response.json()
+        if data.get("embedding_status") == "completed":
+            console.print(f"[green]Embeddings generated for {data['filename']}[/green]")
+        else:
+            console.print(f"[red]Embedding failed for {data['filename']}[/red]")
+            raise typer.Exit(1)
+    elif response.status_code == 404:
+        console.print("[red]File not found[/red]")
+        raise typer.Exit(1)
+    elif response.status_code == 503:
+        console.print("[yellow]Embeddings require OpenAI API key on the server[/yellow]")
+        raise typer.Exit(1)
+    else:
+        console.print(f"[red]Embed failed: {response.text}[/red]")
         raise typer.Exit(1)
 
 

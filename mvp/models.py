@@ -40,6 +40,7 @@ class File(Base):
     content_type = Column(String(100), nullable=False)
     size_bytes = Column(BigInteger, nullable=False)
     storage_path = Column(String(512), nullable=False)
+    embedding_status = Column(String(20), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
