@@ -3,7 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import httpx
 import typer
@@ -155,8 +155,8 @@ def upload(
             console.print("[yellow]Indexing pending[/yellow]")
         elif embedding_status == "failed":
             console.print(
-                f"[yellow]Embedding failed — file stored but not searchable. "
-                f"Use 'agentbox embed {data['id']}' to retry.[/yellow]"
+                "[yellow]Embedding failed — file stored but not searchable. "
+                "Use 'agentbox embed --failed' to retry.[/yellow]"
             )
     else:
         console.print(f"[red]Upload failed: {response.text}[/red]")
@@ -274,19 +274,43 @@ def delete(
 
 @app.command()
 def embed(
-    file_id: str = typer.Argument(..., help="File ID to embed"),
+    file_ids: Optional[List[str]] = typer.Argument(None, help="File IDs to embed"),
+    failed: bool = typer.Option(False, "--failed", help="Retry all files that failed embedding"),
 ):
-    """Generate or regenerate embeddings for a file."""
+    """Embed specific files or retry all failed embeddings."""
     token = require_token()
 
-    response = api_request("POST", f"/files/{file_id}/embed", token=token)
+    requested_file_ids = file_ids or []
+    if not requested_file_ids and not failed:
+        console.print("[red]Specify file IDs or use --failed[/red]")
+        raise typer.Exit(1)
+    if requested_file_ids and failed:
+        console.print("[red]Use file IDs or --failed, not both[/red]")
+        raise typer.Exit(1)
+
+    payload = {"failed_only": True} if failed else {"file_ids": requested_file_ids}
+    response = api_request("POST", "/files/embed", token=token, json=payload)
 
     if response.status_code == 200:
         data = response.json()
-        if data.get("embedding_status") == "completed":
-            console.print(f"[green]Embeddings generated for {data['filename']}[/green]")
-        else:
-            console.print(f"[red]Embedding failed for {data['filename']}[/red]")
+        if data["processed"] == 0:
+            console.print("No files need embedding.")
+            return
+
+        console.print(
+            f"Processed {data['processed']} file(s): "
+            f"{data['succeeded']} succeeded, {data['failed']} failed"
+        )
+        for result in data["results"]:
+            label = result.get("filename") or result.get("requested_id") or result.get("id", "[unknown]")
+            if result["embedding_status"] == "completed":
+                console.print(f"  [green]✓[/green] {label}")
+            else:
+                error_detail = result.get("error")
+                detail = f" ({error_detail})" if error_detail else ""
+                console.print(f"  [red]✗[/red] {label}{detail}")
+
+        if data["failed"] > 0:
             raise typer.Exit(1)
     elif response.status_code == 404:
         console.print("[red]File not found[/red]")
