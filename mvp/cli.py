@@ -3,7 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import httpx
 import typer
@@ -148,6 +148,16 @@ def upload(
         console.print(f"ID: [cyan]{data['id']}[/cyan]")
         console.print(f"Filename: {data['filename']}")
         console.print(f"Size: {data['size_bytes']} bytes")
+        embedding_status = data.get("embedding_status", "not_applicable")
+        if embedding_status == "completed":
+            console.print("[green]Indexed for search[/green]")
+        elif embedding_status == "pending":
+            console.print("[yellow]Indexing pending[/yellow]")
+        elif embedding_status == "failed":
+            console.print(
+                "[yellow]Embedding failed — file stored but not searchable. "
+                "Use 'agentbox embed --failed' to retry.[/yellow]"
+            )
     else:
         console.print(f"[red]Upload failed: {response.text}[/red]")
         raise typer.Exit(1)
@@ -200,6 +210,7 @@ def list_files():
         table.add_column("Filename")
         table.add_column("Type")
         table.add_column("Size", justify="right")
+        table.add_column("Indexed")
         table.add_column("Created")
 
         for f in data["files"]:
@@ -211,11 +222,22 @@ def list_files():
 
             created = f["created_at"][:19].replace("T", " ")
 
+            embedding_status = f.get("embedding_status", "not_applicable")
+            if embedding_status == "completed":
+                indexed = "[green]Yes[/green]"
+            elif embedding_status == "pending":
+                indexed = "[yellow]Pending[/yellow]"
+            elif embedding_status == "failed":
+                indexed = "[red]Failed[/red]"
+            else:
+                indexed = "[dim]N/A[/dim]"
+
             table.add_row(
-                f["id"][:8] + "...",
+                f["id"],
                 f["filename"],
                 f["content_type"],
                 size,
+                indexed,
                 created,
             )
 
@@ -251,6 +273,57 @@ def delete(
 
 
 @app.command()
+def embed(
+    file_ids: Optional[List[str]] = typer.Argument(None, help="File IDs to embed"),
+    failed: bool = typer.Option(False, "--failed", help="Retry all files that failed embedding"),
+):
+    """Embed specific files or retry all failed embeddings."""
+    token = require_token()
+
+    requested_file_ids = file_ids or []
+    if not requested_file_ids and not failed:
+        console.print("[red]Specify file IDs or use --failed[/red]")
+        raise typer.Exit(1)
+    if requested_file_ids and failed:
+        console.print("[red]Use file IDs or --failed, not both[/red]")
+        raise typer.Exit(1)
+
+    payload = {"failed_only": True} if failed else {"file_ids": requested_file_ids}
+    response = api_request("POST", "/files/embed", token=token, json=payload)
+
+    if response.status_code == 200:
+        data = response.json()
+        if data["processed"] == 0:
+            console.print("No files need embedding.")
+            return
+
+        console.print(
+            f"Processed {data['processed']} file(s): "
+            f"{data['succeeded']} succeeded, {data['failed']} failed"
+        )
+        for result in data["results"]:
+            label = result.get("filename") or result.get("requested_id") or result.get("id", "[unknown]")
+            if result["embedding_status"] == "completed":
+                console.print(f"  [green]✓[/green] {label}")
+            else:
+                error_detail = result.get("error")
+                detail = f" ({error_detail})" if error_detail else ""
+                console.print(f"  [red]✗[/red] {label}{detail}")
+
+        if data["failed"] > 0:
+            raise typer.Exit(1)
+    elif response.status_code == 404:
+        console.print("[red]File not found[/red]")
+        raise typer.Exit(1)
+    elif response.status_code == 503:
+        console.print("[yellow]Embeddings require OpenAI API key on the server[/yellow]")
+        raise typer.Exit(1)
+    else:
+        console.print(f"[red]Embed failed: {response.text}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
 def search(
     query: str = typer.Argument(..., help="Search query"),
     limit: int = typer.Option(10, "--limit", "-n", help="Max results"),
@@ -281,7 +354,7 @@ def search(
         for r in data["results"]:
             table.add_row(
                 f"{r['relevance_score']:.3f}",
-                r["file_id"][:8] + "...",
+                r["file_id"],
                 r["filename"],
                 r["matched_chunk"][:50] + "..." if len(r["matched_chunk"]) > 50 else r["matched_chunk"],
             )

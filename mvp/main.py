@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from mvp import __version__
-from mvp.database import init_db
+from mvp.database import ensure_pgvector_extension
 from mvp.routes import files, search, tokens
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -19,7 +19,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
-    init_db()
+    ensure_pgvector_extension()
     yield
     # Shutdown
 

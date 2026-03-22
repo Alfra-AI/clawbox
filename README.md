@@ -79,6 +79,16 @@ curl -X POST http://localhost:8000/search \
   -d '{"query": "your search query"}'
 ```
 
+## Agent Integrations
+
+If you want to connect AgentBox to an external coding or task agent, see
+[`agent-integration/SKILL.md`](agent-integration/SKILL.md).
+
+This file provides a reusable skill definition covering:
+
+- File upload, download, listing, and deletion workflows
+- Semantic search usage and troubleshooting
+
 ## Development
 
 API documentation is available at `http://localhost:8000/docs` when the server is running.
