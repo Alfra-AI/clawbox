@@ -20,13 +20,11 @@ def get_db():
         db.close()
 
 
-def init_db():
-    """Initialize the database, creating all tables."""
-    from mvp import models  # noqa: F401
+def ensure_pgvector_extension() -> None:
+    """Ensure the pgvector extension exists.
 
-    # Create pgvector extension
+    Schema creation and upgrades are handled by Alembic migrations.
+    """
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         conn.commit()
-
-    Base.metadata.create_all(bind=engine)
