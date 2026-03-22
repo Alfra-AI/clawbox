@@ -233,7 +233,7 @@ def list_files():
                 indexed = "[dim]N/A[/dim]"
 
             table.add_row(
-                f["id"][:8] + "...",
+                f["id"],
                 f["filename"],
                 f["content_type"],
                 size,
@@ -330,7 +330,7 @@ def search(
         for r in data["results"]:
             table.add_row(
                 f"{r['relevance_score']:.3f}",
-                r["file_id"][:8] + "...",
+                r["file_id"],
                 r["filename"],
                 r["matched_chunk"][:50] + "..." if len(r["matched_chunk"]) > 50 else r["matched_chunk"],
             )
