@@ -18,7 +18,13 @@ from mvp.embeddings import generate_and_store_embeddings
 
 router = APIRouter(prefix="/files", tags=["files"])
 
-EMBEDDABLE_CONTENT_TYPES = ("text/", "application/json", "application/xml", "application/pdf")
+EMBEDDABLE_CONTENT_TYPES = (
+    "text/",
+    "application/json",
+    "application/xml",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
+)
 
 
 def is_embeddable_content_type(content_type: str) -> bool:

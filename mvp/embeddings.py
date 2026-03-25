@@ -33,6 +33,27 @@ def extract_text_from_pdf(content: bytes) -> Optional[str]:
         return None
 
 
+def extract_text_from_docx(content: bytes) -> Optional[str]:
+    """Extract text from Word (.docx) content."""
+    try:
+        from docx import Document
+
+        doc = Document(io.BytesIO(content))
+        text_parts = []
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                text_parts.append(paragraph.text)
+        # Also extract text from tables
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    if cell.text.strip():
+                        text_parts.append(cell.text)
+        return "\n\n".join(text_parts) if text_parts else None
+    except Exception:
+        return None
+
+
 def get_openai_client() -> OpenAI:
     """Get OpenAI client instance."""
     return OpenAI(api_key=settings.openai_api_key)
@@ -98,6 +119,12 @@ async def generate_and_store_embeddings(
         text = extract_text_from_pdf(content)
         if text is None:
             logger.warning("Failed to extract text from PDF %s", file.id)
+            return False
+    # Handle Word documents (.docx)
+    elif content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        text = extract_text_from_docx(content)
+        if text is None:
+            logger.warning("Failed to extract text from Word doc %s", file.id)
             return False
     else:
         # Decode content to text

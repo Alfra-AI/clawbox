@@ -14,9 +14,9 @@ A minimal cloud file system for agents with semantic search capabilities.
 | Operation | Supported Formats |
 |-----------|-------------------|
 | Upload/Download | All formats (binary storage) |
-| Semantic Search | `text/*`, `application/json`, `application/xml`, `application/pdf` |
+| Semantic Search | `text/*`, `application/json`, `application/xml`, `application/pdf`, `.docx` |
 
-> **Note**: Images, Word docs, and other binary formats can be stored but are NOT indexed for semantic search.
+> **Note**: Images and other binary formats can be stored but are NOT indexed for semantic search.
 
 ## Local Development
 
