@@ -14,9 +14,9 @@ A minimal cloud file system for agents with semantic search capabilities.
 | Operation | Supported Formats |
 |-----------|-------------------|
 | Upload/Download | All formats (binary storage) |
-| Semantic Search | Text-based only: `text/*`, `application/json`, `application/xml` |
+| Semantic Search | `text/*`, `application/json`, `application/xml`, `application/pdf`, `.docx` |
 
-> **Note**: Images, PDFs, Word docs, and other binary formats can be stored but are NOT indexed for semantic search.
+> **Note**: Images and other binary formats can be stored but are NOT indexed for semantic search.
 
 ## Local Development
 
@@ -73,6 +73,8 @@ python -m mvp.main
 
 Server runs at `http://localhost:8000`
 
+**Production:** `https://clawbox.ink`
+
 ## API Endpoints
 
 | Endpoint | Method | Auth | Description |
@@ -88,19 +90,24 @@ Server runs at `http://localhost:8000`
 ## Quick Test
 
 ```bash
+# Use production API
+API_URL="https://clawbox.ink"
+# Or for local development:
+# API_URL="http://localhost:8000"
+
 # Get a token
-TOKEN=$(curl -s -X POST http://localhost:8000/get_token | jq -r .token)
+TOKEN=$(curl -s -X POST $API_URL/get_token | jq -r .token)
 
 # Upload a file
-curl -X POST http://localhost:8000/files/upload \
+curl -X POST $API_URL/files/upload \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@yourfile.txt"
 
 # List files
-curl http://localhost:8000/files -H "Authorization: Bearer $TOKEN"
+curl $API_URL/files -H "Authorization: Bearer $TOKEN"
 
-# Search (requires OPENAI_API_KEY in .env)
-curl -X POST http://localhost:8000/search \
+# Search
+curl -X POST $API_URL/search \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"query": "your search query"}'
@@ -108,7 +115,8 @@ curl -X POST http://localhost:8000/search \
 
 ## API Docs
 
-Interactive docs at `http://localhost:8000/docs`
+- **Production:** `https://clawbox.ink/docs`
+- **Local:** `http://localhost:8000/docs`
 
 ## Cloud Deployment (AWS)
 
@@ -147,4 +155,4 @@ aws ecs update-service --cluster agentbox-prod-cluster --service agentbox-prod -
 
 ### Production URL
 
-After deployment, access the app via the ALB DNS name output by Terraform.
+**https://clawbox.ink**

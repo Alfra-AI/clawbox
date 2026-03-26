@@ -18,7 +18,13 @@ from mvp.embeddings import generate_and_store_embeddings
 
 router = APIRouter(prefix="/files", tags=["files"])
 
-EMBEDDABLE_CONTENT_TYPES = ("text/", "application/json", "application/xml")
+EMBEDDABLE_CONTENT_TYPES = (
+    "text/",
+    "application/json",
+    "application/xml",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
+)
 
 
 def is_embeddable_content_type(content_type: str) -> bool:
@@ -86,7 +92,9 @@ async def _reembed_file(
     db.commit()
 
     try:
-        success = await generate_and_store_embeddings(db, file_record, content)
+        success = await generate_and_store_embeddings(
+            db, file_record, content, file_record.content_type
+        )
         file_record.embedding_status = "completed" if success else "failed"
         error = None if success else "embedding_generation_failed"
     except Exception:
@@ -159,10 +167,12 @@ async def upload_file(
     db.commit()
     db.refresh(file_record)
 
-    # Generate embeddings for text-based files
+    # Generate embeddings for embeddable file types
     if file_record.embedding_status == "pending":
         try:
-            success = await generate_and_store_embeddings(db, file_record, content)
+            success = await generate_and_store_embeddings(
+                db, file_record, content, file_record.content_type
+            )
             file_record.embedding_status = "completed" if success else "failed"
         except Exception:
             db.rollback()

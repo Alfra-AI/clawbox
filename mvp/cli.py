@@ -21,7 +21,7 @@ console = Console()
 CONFIG_DIR = Path.home() / ".agentbox"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
-DEFAULT_API_URL = "http://localhost:8000"
+DEFAULT_API_URL = "https://clawbox.ink"
 
 
 def get_config() -> dict:
@@ -75,7 +75,7 @@ def api_request(
         return response
     except httpx.ConnectError:
         console.print(f"[red]Cannot connect to API at {get_api_url()}[/red]")
-        console.print("Make sure the server is running: python -m mvp.main")
+        console.print("For local dev: python -m mvp.main")
         raise typer.Exit(1)
 
 
