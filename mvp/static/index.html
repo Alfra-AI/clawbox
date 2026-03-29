@@ -430,6 +430,10 @@
                     <div class="storage-bar-fill" id="storageBar" style="width: 0%"></div>
                 </div>
                 <div class="storage-text" id="storageText">0 B / 10 MB used</div>
+                <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:0.9rem;color:#aaa;">
+                    <input type="checkbox" id="autoOrganize" onchange="toggleAutoOrganize(this.checked)">
+                    Auto-organize uploads (AI picks the folder)
+                </label>
             </div>
         </div>
 
@@ -486,6 +490,7 @@
                 showToken();
                 loadFiles();
                 loadUserInfo();
+                loadSettings();
             }
 
             checkAuthProviders();
@@ -837,6 +842,37 @@
 
         function loginWithGoogle() {
             window.location.href = `${API_URL}/auth/google`;
+        }
+
+        async function loadSettings() {
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_URL}/settings`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('autoOrganize').checked = data.auto_organize;
+                }
+            } catch (err) {}
+        }
+
+        async function toggleAutoOrganize(enabled) {
+            try {
+                const res = await fetch(`${API_URL}/settings`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ auto_organize: enabled })
+                });
+                if (res.ok) {
+                    notify(enabled ? 'Auto-organize enabled' : 'Auto-organize disabled', 'success');
+                }
+            } catch (err) {
+                notify('Failed to update settings', 'error');
+            }
         }
 
         async function checkAuthProviders() {

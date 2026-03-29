@@ -37,6 +37,7 @@ class Token(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
     storage_used_bytes = Column(BigInteger, default=0)
     storage_limit_bytes = Column(BigInteger, default=settings.default_storage_limit_bytes)
+    auto_organize = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="tokens")

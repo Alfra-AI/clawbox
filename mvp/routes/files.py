@@ -14,7 +14,7 @@ from mvp.config import settings
 from mvp.database import get_db
 from mvp.models import File as FileModel, FileEmbedding, SharedLink, Token
 from mvp.storage import get_storage_backend
-from mvp.embeddings import generate_and_store_embeddings
+from mvp.embeddings import generate_and_store_embeddings, suggest_folder
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -192,6 +192,20 @@ async def upload_file(
     # Parse virtual path
     default_filename = file.filename or "unnamed"
     folder, filename = _parse_path(path or "", default_filename)
+
+    # Auto-organize: if enabled and no explicit path was given, ask LLM for folder
+    if token.auto_organize and not path:
+        try:
+            text_preview = content[:2000].decode("utf-8", errors="replace")
+        except Exception:
+            text_preview = ""
+        existing_folders = [
+            r[0] for r in db.query(FileModel.folder)
+            .filter(FileModel.token_id == token.id)
+            .distinct()
+            .all()
+        ]
+        folder = suggest_folder(filename, content_type, text_preview, existing_folders)
 
     # Create file record
     file_record = FileModel(

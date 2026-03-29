@@ -250,6 +250,55 @@ async def generate_and_store_embeddings(
     return True
 
 
+def suggest_folder(filename: str, content_type: str, text_preview: str, existing_folders: List[str]) -> str:
+    """Use LLM to suggest a folder for a file based on its content."""
+    if not settings.openai_api_key:
+        return "/"
+
+    try:
+        client = get_openai_client()
+        folder_list = "\n".join(existing_folders) if existing_folders else "(none yet)"
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You organize files into folders. Return ONLY the folder path (e.g., /reports/finance/). "
+                        "Rules:\n"
+                        "- Use existing folders when they fit\n"
+                        "- Create new folders only when no existing folder is appropriate\n"
+                        "- Keep folder names short and lowercase\n"
+                        "- Max 2 levels deep\n"
+                        "- Always start with / and end with /\n"
+                        "- Return ONLY the path, nothing else"
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Filename: {filename}\n"
+                        f"Type: {content_type}\n"
+                        f"Content preview: {text_preview[:500]}\n"
+                        f"Existing folders:\n{folder_list}"
+                    ),
+                },
+            ],
+            max_tokens=50,
+            temperature=0,
+        )
+        folder = response.choices[0].message.content.strip()
+        # Validate the response
+        if not folder.startswith("/"):
+            folder = "/" + folder
+        if not folder.endswith("/"):
+            folder = folder + "/"
+        return folder
+    except Exception:
+        logger.exception("Auto-organize failed for %s", filename)
+        return "/"
+
+
 def search_embeddings(db: Session, token_id: str, query: str, limit: int = 10) -> List[dict]:
     """Search for files matching the query using vector similarity."""
     # Generate embedding for query
