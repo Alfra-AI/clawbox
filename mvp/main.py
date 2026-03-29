@@ -3,14 +3,22 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from datetime import datetime
+
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse as StaticFileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
 
 from mvp import __version__
-from mvp.database import ensure_pgvector_extension
-from mvp.routes import files, search, tokens
+from mvp.config import settings
+from mvp.database import ensure_pgvector_extension, get_db
+from mvp.models import SharedLink, File as FileModel
+from mvp.oauth import register_google
+from mvp.routes import files, oauth, search, tokens
+from mvp.storage import get_storage_backend
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -20,6 +28,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     ensure_pgvector_extension()
+    register_google()
     yield
     # Shutdown
 
@@ -30,6 +39,9 @@ app = FastAPI(
     version=__version__,
     lifespan=lifespan,
 )
+
+# Session middleware (for OAuth state during redirect flow)
+app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key)
 
 # CORS middleware
 app.add_middleware(
@@ -44,12 +56,53 @@ app.add_middleware(
 app.include_router(tokens.router)
 app.include_router(files.router)
 app.include_router(search.router)
+app.include_router(oauth.router)
 
 
 @app.get("/")
 async def index():
     """Serve the web UI."""
-    return FileResponse(STATIC_DIR / "index.html")
+    return StaticFileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/s/{code}")
+async def shared_download(code: str, db: Session = Depends(get_db)):
+    """Download a file via shared link (no auth required)."""
+    link = db.query(SharedLink).filter(SharedLink.code == code).first()
+    if link is None:
+        raise HTTPException(status_code=404, detail="Link not found or expired")
+
+    # Check expiry
+    if link.expires_at and datetime.utcnow() > link.expires_at:
+        db.delete(link)
+        db.commit()
+        raise HTTPException(status_code=410, detail="Link has expired")
+
+    # Check download limit
+    if link.max_downloads and link.download_count >= link.max_downloads:
+        raise HTTPException(status_code=410, detail="Download limit reached")
+
+    file_record = db.query(FileModel).filter(FileModel.id == link.file_id).first()
+    if file_record is None:
+        raise HTTPException(status_code=404, detail="File no longer exists")
+
+    storage = get_storage_backend()
+    try:
+        content = await storage.load(file_record.storage_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found in storage")
+
+    # Increment download count
+    link.download_count += 1
+    db.commit()
+
+    return Response(
+        content=content,
+        media_type=file_record.content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{file_record.filename}"',
+        },
+    )
 
 
 @app.get("/health")

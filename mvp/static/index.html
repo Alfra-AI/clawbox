@@ -123,6 +123,129 @@
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         }
 
+        .google-btn {
+            background: #fff;
+            color: #333;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+
+        .google-btn:hover {
+            background: #f0f0f0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .google-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .user-info img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+        }
+
+        .user-info .user-name {
+            font-weight: 500;
+            color: #4ade80;
+        }
+
+        .user-info .user-email {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .auth-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .auth-divider {
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            flex-wrap: wrap;
+        }
+
+        .breadcrumbs a {
+            color: #00d4ff;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .breadcrumbs a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumbs .sep {
+            color: #555;
+        }
+
+        .breadcrumbs .current {
+            color: #e0e0e0;
+        }
+
+        .folder-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            background: rgba(0, 212, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+
+        .folder-item:hover {
+            background: rgba(0, 212, 255, 0.12);
+        }
+
+        .folder-item .folder-name {
+            color: #00d4ff;
+            font-weight: 500;
+        }
+
+        .path-input {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .path-input input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #fff;
+            font-size: 0.85rem;
+        }
+
+        .path-input input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
         .upload-zone {
             border: 2px dashed rgba(0, 212, 255, 0.3);
             border-radius: 12px;
@@ -286,14 +409,22 @@
         <div class="card" id="tokenCard">
             <h2>Your Token</h2>
             <div id="noToken">
-                <p style="color: #888; margin-bottom: 16px;">Get a free token to start uploading files (10 MB storage)</p>
-                <button onclick="getToken()">Get Free Token</button>
+                <p style="color: #888; margin-bottom: 16px;">Sign in or get a free token to start uploading files (10 MB storage)</p>
+                <div class="auth-buttons">
+                    <button class="google-btn hidden" id="googleLoginBtn" onclick="loginWithGoogle()">
+                        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                        Sign in with Google
+                    </button>
+                    <span class="auth-divider hidden" id="authDivider">or</span>
+                    <button onclick="getToken()">Get Free Token</button>
+                </div>
             </div>
             <div id="hasToken" class="hidden">
+                <div id="userInfo" class="user-info hidden"></div>
                 <div class="token-display">
                     <code id="tokenValue"></code>
                     <button class="secondary" onclick="copyToken()">Copy</button>
-                    <button class="secondary" onclick="clearToken()">Reset</button>
+                    <button class="secondary" onclick="clearToken()">Logout</button>
                 </div>
                 <div class="storage-bar">
                     <div class="storage-bar-fill" id="storageBar" style="width: 0%"></div>
@@ -310,6 +441,9 @@
                 <button>Choose Files</button>
             </div>
             <input type="file" id="fileInput" multiple onchange="handleFiles(this.files)">
+            <div class="path-input">
+                <input type="text" id="uploadPath" placeholder="Folder path (e.g., /docs/) — leave empty for root">
+            </div>
         </div>
 
         <!-- Search Section -->
@@ -325,6 +459,7 @@
         <!-- Files Section -->
         <div class="card">
             <h2>Your Files</h2>
+            <div id="breadcrumbs" class="breadcrumbs"></div>
             <div id="fileList" class="file-list">
                 <div class="empty-state">No files uploaded yet</div>
             </div>
@@ -334,13 +469,26 @@
     <script>
         const API_URL = window.location.origin;
         let token = localStorage.getItem('agentbox_token');
+        let currentFolder = '/';
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            // Check for token from OAuth callback
+            const urlParams = new URLSearchParams(window.location.search);
+            const oauthToken = urlParams.get('token');
+            if (oauthToken) {
+                token = oauthToken;
+                localStorage.setItem('agentbox_token', token);
+                window.history.replaceState({}, '', '/');
+            }
+
             if (token) {
                 showToken();
                 loadFiles();
+                loadUserInfo();
             }
+
+            checkAuthProviders();
             setupDragDrop();
         });
 
@@ -397,6 +545,8 @@
             token = null;
             document.getElementById('noToken').classList.remove('hidden');
             document.getElementById('hasToken').classList.add('hidden');
+            document.getElementById('userInfo').classList.add('hidden');
+            document.getElementById('userInfo').innerHTML = '';
             document.getElementById('fileList').innerHTML = '<div class="empty-state">No files uploaded yet</div>';
         }
 
@@ -420,9 +570,15 @@
                 return;
             }
 
+            const uploadPath = document.getElementById('uploadPath').value.trim();
+
             for (const file of files) {
                 const formData = new FormData();
                 formData.append('file', file);
+                // Build path: use input path, or current folder
+                const folder = uploadPath || currentFolder;
+                const fullPath = folder.endsWith('/') ? folder + file.name : folder + '/' + file.name;
+                formData.append('path', fullPath);
 
                 try {
                     const res = await fetch(`${API_URL}/files/upload`, {
@@ -444,39 +600,103 @@
             loadFiles();
         }
 
+        function renderBreadcrumbs() {
+            const container = document.getElementById('breadcrumbs');
+            if (currentFolder === '/') {
+                container.innerHTML = '<span class="current">/</span>';
+                return;
+            }
+            const parts = currentFolder.split('/').filter(Boolean);
+            let path = '/';
+            let html = `<a onclick="navigateFolder('/')">root</a>`;
+            parts.forEach((part, i) => {
+                path += part + '/';
+                html += `<span class="sep">/</span>`;
+                if (i === parts.length - 1) {
+                    html += `<span class="current">${part}</span>`;
+                } else {
+                    html += `<a onclick="navigateFolder('${path}')">${part}</a>`;
+                }
+            });
+            container.innerHTML = html;
+        }
+
+        function navigateFolder(folder) {
+            currentFolder = folder;
+            document.getElementById('uploadPath').value = folder === '/' ? '' : folder;
+            loadFiles();
+        }
+
         async function loadFiles() {
             if (!token) return;
 
             try {
-                const res = await fetch(`${API_URL}/files`, {
+                // Load all files recursively from current folder
+                const params = new URLSearchParams();
+                params.set('folder', currentFolder);
+                params.set('recursive', 'true');
+                const res = await fetch(`${API_URL}/files?${params}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
 
+                renderBreadcrumbs();
+
                 const container = document.getElementById('fileList');
                 if (data.files.length === 0) {
-                    container.innerHTML = '<div class="empty-state">No files uploaded yet</div>';
+                    container.innerHTML = '<div class="empty-state">No files here</div>';
                     return;
                 }
 
+                // Separate: subfolders in current folder + files in current folder
+                const subfolders = new Set();
+                const currentFiles = [];
                 let totalSize = 0;
-                container.innerHTML = data.files.map(f => {
+
+                for (const f of data.files) {
                     totalSize += f.size_bytes;
-                    return `
-                        <div class="file-item">
-                            <div class="file-icon">${getFileIcon(f.content_type)}</div>
-                            <div class="file-info">
-                                <div class="file-name">${f.filename}</div>
-                                <div class="file-meta">${formatBytes(f.size_bytes)} &bull; ${f.content_type}</div>
-                            </div>
-                            <div class="file-actions">
-                                <button class="secondary" onclick="downloadFile('${f.id}', '${f.filename}')">Download</button>
-                                <button class="danger" onclick="deleteFile('${f.id}')">Delete</button>
-                            </div>
+                    const fileFolder = f.folder || '/';
+                    if (fileFolder === currentFolder) {
+                        currentFiles.push(f);
+                    } else if (fileFolder.startsWith(currentFolder)) {
+                        // Extract immediate subfolder name
+                        const rest = fileFolder.slice(currentFolder.length);
+                        const subName = rest.split('/')[0];
+                        if (subName) subfolders.add(subName);
+                    }
+                }
+
+                let html = '';
+
+                // Render subfolders
+                for (const sub of [...subfolders].sort()) {
+                    const subPath = currentFolder + sub + '/';
+                    html += `
+                        <div class="folder-item" onclick="navigateFolder('${subPath}')">
+                            <div class="file-icon">📂</div>
+                            <div class="folder-name">${sub}/</div>
                         </div>
                     `;
-                }).join('');
+                }
 
+                // Render files in current folder
+                html += currentFiles.map(f => `
+                    <div class="file-item">
+                        <div class="file-icon">${getFileIcon(f.content_type)}</div>
+                        <div class="file-info">
+                            <div class="file-name">${f.filename}</div>
+                            <div class="file-meta">${formatBytes(f.size_bytes)} &bull; ${f.content_type}</div>
+                        </div>
+                        <div class="file-actions">
+                            <button class="secondary" onclick="shareFile('${f.id}')">Share</button>
+                            <button class="secondary" onclick="downloadFile('${f.id}', '${f.filename}')">Download</button>
+                            <button class="secondary" onclick="moveFile('${f.id}', '${f.folder}${f.filename}')">Move</button>
+                            <button class="danger" onclick="deleteFile('${f.id}')">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                container.innerHTML = html || '<div class="empty-state">No files here</div>';
                 updateStorage(totalSize, 10 * 1024 * 1024);
             } catch (err) {
                 notify('Failed to load files', 'error');
@@ -556,13 +776,102 @@
 
                 container.innerHTML = data.results.map(r => `
                     <div class="search-result">
-                        <div class="file-name">${r.filename}</div>
+                        <div class="file-name">${(r.folder || '/') + r.filename}</div>
                         <div class="score">Relevance: ${(r.relevance_score * 100).toFixed(1)}%</div>
                         <div class="matched-text">"${r.matched_chunk}"</div>
                     </div>
                 `).join('');
             } catch (err) {
                 notify('Search failed', 'error');
+            }
+        }
+
+        async function shareFile(id) {
+            try {
+                const res = await fetch(`${API_URL}/files/${id}/share`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const url = data.url;
+                    await navigator.clipboard.writeText(url);
+                    notify(`Link copied: ${url}`, 'success');
+                } else {
+                    const err = await res.json();
+                    notify(err.detail || 'Share failed', 'error');
+                }
+            } catch (err) {
+                notify('Share failed', 'error');
+            }
+        }
+
+        async function moveFile(id, currentPath) {
+            const newPath = prompt('Move to (e.g., /docs/report.pdf):', currentPath);
+            if (!newPath || newPath === currentPath) return;
+
+            try {
+                const res = await fetch(`${API_URL}/files/${id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ path: newPath })
+                });
+                if (res.ok) {
+                    notify('File moved', 'success');
+                    loadFiles();
+                } else {
+                    const err = await res.json();
+                    notify(err.detail || 'Move failed', 'error');
+                }
+            } catch (err) {
+                notify('Move failed', 'error');
+            }
+        }
+
+        function loginWithGoogle() {
+            window.location.href = `${API_URL}/auth/google`;
+        }
+
+        async function checkAuthProviders() {
+            try {
+                const res = await fetch(`${API_URL}/auth/providers`);
+                const data = await res.json();
+                if (data.google) {
+                    document.getElementById('googleLoginBtn').classList.remove('hidden');
+                    document.getElementById('authDivider').classList.remove('hidden');
+                }
+            } catch (err) {
+                // Google auth not available, hide button
+            }
+        }
+
+        async function loadUserInfo() {
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_URL}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                const container = document.getElementById('userInfo');
+                if (!data.anonymous) {
+                    container.innerHTML = `
+                        ${data.picture_url ? `<img src="${data.picture_url}" alt="avatar">` : ''}
+                        <div>
+                            <div class="user-name">${data.name || 'User'}</div>
+                            <div class="user-email">${data.email}</div>
+                        </div>
+                    `;
+                    container.classList.remove('hidden');
+                }
+            } catch (err) {
+                // Not linked to Google account, that's fine
             }
         }
 
