@@ -446,6 +446,24 @@
             </div>
         </div>
 
+        <!-- Quick Drop Section -->
+        <div class="card">
+            <h2>Quick Drop</h2>
+            <p style="color: #888; margin-bottom: 12px; font-size: 0.9rem;">Drop a file and get a 4-digit PIN. No account needed. Expires in 24h.</p>
+            <div class="upload-zone" id="dropZone" onclick="document.getElementById('dropInput').click()">
+                <p>Drop a file here</p>
+                <button>Choose File</button>
+            </div>
+            <input type="file" id="dropInput" style="display:none" onchange="handleDrop(this.files[0])">
+            <div id="dropResult" class="hidden" style="text-align:center;margin-top:20px;">
+                <div style="font-size:3rem;font-weight:700;color:#4ade80;letter-spacing:0.3em;font-family:Monaco,Menlo,monospace;" id="dropCode"></div>
+                <div style="color:#888;font-size:0.9rem;margin:8px 0;" id="dropMeta"></div>
+                <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
+                    <button class="secondary" onclick="copyDropLink()">Copy Link</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Search Section -->
         <div class="card">
             <h2>Semantic Search</h2>
@@ -493,26 +511,31 @@
         });
 
         function setupDragDrop() {
+            // Upload zone
             const zone = document.getElementById('uploadZone');
-
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
-                zone.addEventListener(event, e => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
+                zone.addEventListener(event, e => { e.preventDefault(); e.stopPropagation(); });
             });
-
             ['dragenter', 'dragover'].forEach(event => {
                 zone.addEventListener(event, () => zone.classList.add('dragover'));
             });
-
             ['dragleave', 'drop'].forEach(event => {
                 zone.addEventListener(event, () => zone.classList.remove('dragover'));
             });
+            zone.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
 
-            zone.addEventListener('drop', e => {
-                handleFiles(e.dataTransfer.files);
+            // Drop zone
+            const dropZone = document.getElementById('dropZone');
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+                dropZone.addEventListener(event, e => { e.preventDefault(); e.stopPropagation(); });
             });
+            ['dragenter', 'dragover'].forEach(event => {
+                dropZone.addEventListener(event, () => dropZone.classList.add('dragover'));
+            });
+            ['dragleave', 'drop'].forEach(event => {
+                dropZone.addEventListener(event, () => dropZone.classList.remove('dragover'));
+            });
+            dropZone.addEventListener('drop', e => { handleDrop(e.dataTransfer.files[0]); });
         }
 
         async function getToken() {
@@ -784,6 +807,40 @@
             } catch (err) {
                 notify('Search failed', 'error');
             }
+        }
+
+        let lastDropCode = '';
+
+        async function handleDrop(file) {
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${API_URL}/drop`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    lastDropCode = data.code;
+                    document.getElementById('dropCode').textContent = data.code;
+                    document.getElementById('dropMeta').textContent = `${file.name} · expires in 24h`;
+                    document.getElementById('dropResult').classList.remove('hidden');
+                    notify('Drop created!', 'success');
+                } else {
+                    const err = await res.json();
+                    notify(err.detail || 'Drop failed', 'error');
+                }
+            } catch (err) {
+                notify('Drop failed', 'error');
+            }
+        }
+
+        function copyDropLink() {
+            const url = `${API_URL}/d/${lastDropCode}`;
+            navigator.clipboard.writeText(url);
+            notify(`Link copied: ${url}`, 'success');
         }
 
         async function shareFile(id) {

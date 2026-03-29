@@ -96,3 +96,20 @@ class SharedLink(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     file = relationship("File")
+
+
+class Drop(Base):
+    """Ephemeral file drop with short PIN code."""
+
+    __tablename__ = "drops"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String(4), unique=True, nullable=False, index=True)
+    filename = Column(String(255), nullable=False)
+    content_type = Column(String(100), nullable=False)
+    size_bytes = Column(BigInteger, nullable=False)
+    storage_path = Column(String(512), nullable=False)
+    max_downloads = Column(Integer, default=1)
+    download_count = Column(Integer, default=0)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
