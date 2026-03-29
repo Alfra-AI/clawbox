@@ -54,6 +54,75 @@ def extract_text_from_docx(content: bytes) -> Optional[str]:
         return None
 
 
+def extract_text_from_xlsx(content: bytes) -> Optional[str]:
+    """Extract text from Excel (.xlsx) content."""
+    try:
+        from openpyxl import load_workbook
+
+        wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        text_parts = []
+        for sheet in wb.sheetnames:
+            ws = wb[sheet]
+            text_parts.append(f"[Sheet: {sheet}]")
+            for row in ws.iter_rows(values_only=True):
+                cells = [str(c) for c in row if c is not None]
+                if cells:
+                    text_parts.append(" | ".join(cells))
+        wb.close()
+        return "\n".join(text_parts) if text_parts else None
+    except Exception:
+        return None
+
+
+def extract_text_from_csv(content: bytes) -> Optional[str]:
+    """Extract text from CSV content."""
+    import csv
+
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            text = content.decode("latin-1")
+        except Exception:
+            return None
+
+    try:
+        reader = csv.reader(io.StringIO(text))
+        rows = []
+        for row in reader:
+            if any(cell.strip() for cell in row):
+                rows.append(" | ".join(row))
+        return "\n".join(rows) if rows else None
+    except Exception:
+        return None
+
+
+def extract_text_from_pptx(content: bytes) -> Optional[str]:
+    """Extract text from PowerPoint (.pptx) content."""
+    try:
+        from pptx import Presentation
+
+        prs = Presentation(io.BytesIO(content))
+        text_parts = []
+        for i, slide in enumerate(prs.slides, 1):
+            slide_texts = []
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for paragraph in shape.text_frame.paragraphs:
+                        if paragraph.text.strip():
+                            slide_texts.append(paragraph.text)
+                if shape.has_table:
+                    for row in shape.table.rows:
+                        cells = [cell.text for cell in row.cells if cell.text.strip()]
+                        if cells:
+                            slide_texts.append(" | ".join(cells))
+            if slide_texts:
+                text_parts.append(f"[Slide {i}]\n" + "\n".join(slide_texts))
+        return "\n\n".join(text_parts) if text_parts else None
+    except Exception:
+        return None
+
+
 def get_openai_client() -> OpenAI:
     """Get OpenAI client instance."""
     return OpenAI(api_key=settings.openai_api_key)
@@ -125,6 +194,24 @@ async def generate_and_store_embeddings(
         text = extract_text_from_docx(content)
         if text is None:
             logger.warning("Failed to extract text from Word doc %s", file.id)
+            return False
+    # Handle Excel (.xlsx)
+    elif content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        text = extract_text_from_xlsx(content)
+        if text is None:
+            logger.warning("Failed to extract text from Excel %s", file.id)
+            return False
+    # Handle PowerPoint (.pptx)
+    elif content_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+        text = extract_text_from_pptx(content)
+        if text is None:
+            logger.warning("Failed to extract text from PowerPoint %s", file.id)
+            return False
+    # Handle CSV
+    elif content_type == "text/csv":
+        text = extract_text_from_csv(content)
+        if text is None:
+            logger.warning("Failed to extract text from CSV %s", file.id)
             return False
     else:
         # Decode content to text
@@ -198,6 +285,7 @@ def search_embeddings(db: Session, token_id: str, query: str, limit: int = 10) -
         formatted_results.append({
             "file_id": str(file.id),
             "filename": file.filename,
+            "folder": file.folder,
             "content_type": file.content_type,
             "relevance_score": 1 - distance,  # Convert distance to similarity
             "matched_chunk": embedding.chunk_text[:200] + "..." if len(embedding.chunk_text) > 200 else embedding.chunk_text,
