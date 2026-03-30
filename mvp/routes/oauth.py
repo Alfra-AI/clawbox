@@ -65,11 +65,14 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         user.name = name
         user.picture_url = picture
 
-    # Find or create token for this user
+    # Find or create token for this user (logged-in users get 1 GB)
+    LOGGED_IN_STORAGE = 1024 * 1024 * 1024  # 1 GB
     api_token = db.query(Token).filter(Token.user_id == user.id).first()
     if not api_token:
-        api_token = Token(user_id=user.id)
+        api_token = Token(user_id=user.id, storage_limit_bytes=LOGGED_IN_STORAGE)
         db.add(api_token)
+    elif api_token.storage_limit_bytes < LOGGED_IN_STORAGE:
+        api_token.storage_limit_bytes = LOGGED_IN_STORAGE
 
     db.commit()
 

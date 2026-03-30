@@ -698,7 +698,7 @@
                 `).join('');
 
                 container.innerHTML = html || '<div class="empty-state">No files here</div>';
-                updateStorage(totalSize, 10 * 1024 * 1024);
+                updateStorage(data.storage_used_bytes || totalSize, data.storage_limit_bytes || 10 * 1024 * 1024);
             } catch (err) {
                 notify('Failed to load files', 'error');
             }

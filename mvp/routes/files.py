@@ -68,6 +68,8 @@ class FileListResponse(BaseModel):
 
     files: List[FileResponse]
     total: int
+    storage_used_bytes: int = 0
+    storage_limit_bytes: int = 0
 
 
 class EmbedFileResult(BaseModel):
@@ -287,6 +289,8 @@ def list_files(
             for f in files
         ],
         total=len(files),
+        storage_used_bytes=token.storage_used_bytes,
+        storage_limit_bytes=token.storage_limit_bytes,
     )
 
 
