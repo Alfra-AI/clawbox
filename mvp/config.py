@@ -23,10 +23,13 @@ class Settings(BaseSettings):
     # Token settings
     default_storage_limit_bytes: int = 10 * 1024 * 1024  # 10 MB
 
-    # OpenAI
+    # OpenAI (legacy, kept for backward compat)
     openai_api_key: str = ""
-    embedding_model: str = "text-embedding-3-small"
-    embedding_dimensions: int = 1536
+
+    # Google Gemini (primary embedding provider)
+    google_api_key: str = ""
+    embedding_model: str = "gemini-embedding-2-preview"
+    embedding_dimensions: int = 768
 
     # Google OAuth
     google_client_id: str = ""
