@@ -638,6 +638,7 @@
                 const res = await fetch(`${API_URL}/files?${params}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                if (handleAuthError(res)) return;
                 const data = await res.json();
 
                 renderBreadcrumbs();
@@ -701,6 +702,15 @@
             } catch (err) {
                 notify('Failed to load files', 'error');
             }
+        }
+
+        function handleAuthError(res) {
+            if (res.status === 401) {
+                clearToken();
+                notify('Session expired, please sign in again', 'error');
+                return true;
+            }
+            return false;
         }
 
         function getFileIcon(type) {
