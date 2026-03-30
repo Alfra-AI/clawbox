@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
 
+    # Google OAuth
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    session_secret_key: str = "change-me-to-a-random-string"
+    app_url: str = "http://localhost:8000"
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000

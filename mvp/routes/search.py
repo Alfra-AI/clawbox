@@ -27,6 +27,7 @@ class SearchResult(BaseModel):
 
     file_id: str
     filename: str
+    folder: str
     content_type: str
     relevance_score: float
     matched_chunk: str

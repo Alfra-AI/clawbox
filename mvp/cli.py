@@ -134,19 +134,21 @@ def config(
 @app.command()
 def upload(
     file_path: Path = typer.Argument(..., help="File to upload", exists=True),
+    path: Optional[str] = typer.Option(None, "--path", "-p", help="Virtual path (e.g., /docs/readme.md)"),
 ):
-    """Upload a file."""
+    """Upload a file. Use --path to organize into folders."""
     token = require_token()
 
     with open(file_path, "rb") as f:
         files = {"file": (file_path.name, f)}
-        response = api_request("POST", "/files/upload", token=token, files=files)
+        data = {"path": path} if path else {}
+        response = api_request("POST", "/files/upload", token=token, files=files, data=data)
 
     if response.status_code == 201:
         data = response.json()
         console.print("[green]File uploaded successfully![/green]")
         console.print(f"ID: [cyan]{data['id']}[/cyan]")
-        console.print(f"Filename: {data['filename']}")
+        console.print(f"Path: {data.get('folder', '/')}{data['filename']}")
         console.print(f"Size: {data['size_bytes']} bytes")
         embedding_status = data.get("embedding_status", "not_applicable")
         if embedding_status == "completed":
@@ -192,11 +194,20 @@ def download(
 
 
 @app.command(name="list")
-def list_files():
-    """List all files."""
+def list_files(
+    folder: Optional[str] = typer.Option(None, "--folder", "-f", help="Filter by folder (e.g., /docs/)"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subfolders"),
+):
+    """List all files, optionally filtered by folder."""
     token = require_token()
 
-    response = api_request("GET", "/files", token=token)
+    params = {}
+    if folder:
+        params["folder"] = folder
+    if recursive:
+        params["recursive"] = "true"
+
+    response = api_request("GET", "/files", token=token, params=params)
 
     if response.status_code == 200:
         data = response.json()
@@ -207,7 +218,7 @@ def list_files():
 
         table = Table(title=f"Files ({data['total']} total)")
         table.add_column("ID", style="cyan", no_wrap=True)
-        table.add_column("Filename")
+        table.add_column("Path")
         table.add_column("Type")
         table.add_column("Size", justify="right")
         table.add_column("Indexed")
@@ -221,6 +232,7 @@ def list_files():
                 size = f"{f['size_bytes'] / 1024 / 1024:.1f} MB"
 
             created = f["created_at"][:19].replace("T", " ")
+            file_path = f.get("folder", "/") + f["filename"]
 
             embedding_status = f.get("embedding_status", "not_applicable")
             if embedding_status == "completed":
@@ -234,7 +246,7 @@ def list_files():
 
             table.add_row(
                 f["id"],
-                f["filename"],
+                file_path,
                 f["content_type"],
                 size,
                 indexed,
