@@ -93,6 +93,12 @@ def get_current_user(
     if not user:
         return {"anonymous": True}
 
+    # Ensure logged-in users have upgraded storage
+    LOGGED_IN_STORAGE = 1024 * 1024 * 1024  # 1 GB
+    if token.storage_limit_bytes < LOGGED_IN_STORAGE:
+        token.storage_limit_bytes = LOGGED_IN_STORAGE
+        db.commit()
+
     return {
         "anonymous": False,
         "email": user.email,
