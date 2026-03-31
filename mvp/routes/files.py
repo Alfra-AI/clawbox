@@ -39,6 +39,15 @@ EMBEDDABLE_CONTENT_TYPES = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # .pptx
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "video/mp4",
+    "video/quicktime",  # .mov
+    "audio/mpeg",  # .mp3
+    "audio/wav",
+    "audio/x-wav",
 )
 
 
@@ -301,10 +310,10 @@ async def batch_embed_files(
     db: Session = Depends(get_db),
 ) -> BatchEmbedResponse:
     """Embed selected files or retry all files that previously failed."""
-    if not settings.openai_api_key:
+    if not settings.google_api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Embeddings not available. OpenAI API key not configured.",
+            detail="Embeddings not available. Google API key not configured.",
         )
 
     storage = get_storage_backend()

@@ -51,10 +51,10 @@ def search_files(
     Returns files ranked by relevance to the query.
     Only searches files belonging to the authenticated token.
     """
-    if not settings.openai_api_key:
+    if not settings.google_api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Search is not available. OpenAI API key not configured.",
+            detail="Search is not available. Google API key not configured.",
         )
 
     if not request.query.strip():
