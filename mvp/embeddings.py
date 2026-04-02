@@ -1,10 +1,11 @@
-"""Embeddings generation and management using OpenAI."""
+"""Embeddings generation and management using Google Gemini."""
 
 import io
 import logging
 from typing import List, Optional
 
-from openai import OpenAI
+from google import genai
+from google.genai import types
 from sqlalchemy.orm import Session
 
 from mvp.config import settings
@@ -15,6 +16,28 @@ logger = logging.getLogger(__name__)
 # Chunk size for text splitting (in characters)
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
+
+# Content types that can be embedded directly via Gemini multimodal
+IMAGE_CONTENT_TYPES = {
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+}
+
+VIDEO_CONTENT_TYPES = {
+    "video/mp4",
+    "video/quicktime",  # .mov
+}
+
+AUDIO_CONTENT_TYPES = {
+    "audio/mpeg",  # .mp3
+    "audio/wav",
+    "audio/x-wav",
+}
+
+# All types that bypass text extraction and embed raw bytes directly
+MULTIMODAL_CONTENT_TYPES = IMAGE_CONTENT_TYPES | VIDEO_CONTENT_TYPES | AUDIO_CONTENT_TYPES
 
 
 def extract_text_from_pdf(content: bytes) -> Optional[str]:
@@ -123,9 +146,9 @@ def extract_text_from_pptx(content: bytes) -> Optional[str]:
         return None
 
 
-def get_openai_client() -> OpenAI:
-    """Get OpenAI client instance."""
-    return OpenAI(api_key=settings.openai_api_key)
+def get_gemini_client() -> genai.Client:
+    """Get Gemini client instance."""
+    return genai.Client(api_key=settings.google_api_key)
 
 
 def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> List[str]:
@@ -145,32 +168,60 @@ def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVE
 
 
 def generate_embedding(text: str) -> List[float]:
-    """Generate embedding for a single text using OpenAI."""
-    if not settings.openai_api_key:
-        raise ValueError("OpenAI API key not configured")
+    """Generate embedding for a single text query using Gemini."""
+    if not settings.google_api_key:
+        raise ValueError("Google API key not configured")
 
-    client = get_openai_client()
-    response = client.embeddings.create(
+    client = get_gemini_client()
+    result = client.models.embed_content(
         model=settings.embedding_model,
-        input=text,
+        contents=text,
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_QUERY",
+            output_dimensionality=settings.embedding_dimensions,
+        ),
     )
-    return response.data[0].embedding
+    return list(result.embeddings[0].values)
 
 
 def generate_embeddings_batch(texts: List[str]) -> List[List[float]]:
-    """Generate embeddings for multiple texts in a single API call."""
-    if not settings.openai_api_key:
-        raise ValueError("OpenAI API key not configured")
+    """Generate embeddings for multiple texts."""
+    if not settings.google_api_key:
+        raise ValueError("Google API key not configured")
 
     if not texts:
         return []
 
-    client = get_openai_client()
-    response = client.embeddings.create(
+    client = get_gemini_client()
+    embeddings = []
+    for text in texts:
+        result = client.models.embed_content(
+            model=settings.embedding_model,
+            contents=text,
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_DOCUMENT",
+                output_dimensionality=settings.embedding_dimensions,
+            ),
+        )
+        embeddings.append(list(result.embeddings[0].values))
+    return embeddings
+
+
+def generate_multimodal_embedding(content: bytes, content_type: str) -> List[float]:
+    """Generate embedding for an image, video, or audio file using Gemini multimodal embedding."""
+    if not settings.google_api_key:
+        raise ValueError("Google API key not configured")
+
+    client = get_gemini_client()
+    result = client.models.embed_content(
         model=settings.embedding_model,
-        input=texts,
+        contents=types.Part.from_bytes(data=content, mime_type=content_type),
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_DOCUMENT",
+            output_dimensionality=settings.embedding_dimensions,
+        ),
     )
-    return [item.embedding for item in response.data]
+    return list(result.embeddings[0].values)
 
 
 async def generate_and_store_embeddings(
@@ -181,15 +232,39 @@ async def generate_and_store_embeddings(
     Returns True if embeddings were generated successfully (or file was empty),
     False if embedding generation failed.
     """
+    # Handle multimodal files (image/video/audio) — embed directly via Gemini
+    if content_type in MULTIMODAL_CONTENT_TYPES:
+        try:
+            embedding = generate_multimodal_embedding(content, content_type)
+        except Exception:
+            logger.exception("Failed to generate multimodal embedding for file %s", file.id)
+            return False
+
+        # Determine label for the chunk text placeholder
+        if content_type in IMAGE_CONTENT_TYPES:
+            label = "image"
+        elif content_type in VIDEO_CONTENT_TYPES:
+            label = "video"
+        else:
+            label = "audio"
+
+        file_embedding = FileEmbedding(
+            file_id=file.id,
+            chunk_index=0,
+            chunk_text=f"[{label}: {file.filename}]",
+            embedding=embedding,
+        )
+        db.add(file_embedding)
+        return True
+
+    # Handle text-based files — extract text, chunk, and embed
     text = None
 
-    # Handle PDF files
     if content_type == "application/pdf":
         text = extract_text_from_pdf(content)
         if text is None:
             logger.warning("Failed to extract text from PDF %s", file.id)
             return False
-    # Handle Word documents (.docx)
     elif content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         text = extract_text_from_docx(content)
         if text is None:
@@ -214,7 +289,6 @@ async def generate_and_store_embeddings(
             logger.warning("Failed to extract text from CSV %s", file.id)
             return False
     else:
-        # Decode content to text
         try:
             text = content.decode("utf-8")
         except UnicodeDecodeError:
@@ -256,7 +330,6 @@ def search_embeddings(db: Session, token_id: str, query: str, limit: int = 10) -
     query_embedding = generate_embedding(query)
 
     # Search using pgvector cosine distance
-    from sqlalchemy import select, func
     from mvp.models import FileEmbedding, File
 
     # Query with vector similarity

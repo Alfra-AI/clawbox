@@ -23,6 +23,8 @@ A minimal cloud file system for agents with semantic search capabilities.
 docker-compose up -d
 ```
 
+Wait until the container is healthy before starting the app.
+
 2. Create a virtual environment and install dependencies:
 ```bash
 python -m venv venv
