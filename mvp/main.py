@@ -5,7 +5,7 @@ from pathlib import Path
 
 from datetime import datetime
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse as StaticFileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -67,9 +67,15 @@ app.include_router(search.router)
 app.include_router(oauth.router)
 
 
+DROP_DOMAINS = {"qdrop.cc", "www.qdrop.cc"}
+
+
 @app.get("/")
-async def index():
-    """Serve the web UI."""
+async def index(request: Request):
+    """Serve the web UI, or drop page if accessed via qdrop.cc."""
+    host = request.headers.get("host", "").split(":")[0]
+    if host in DROP_DOMAINS:
+        return StaticFileResponse(STATIC_DIR / "drop.html")
     return StaticFileResponse(STATIC_DIR / "index.html")
 
 
