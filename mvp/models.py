@@ -96,8 +96,6 @@ class SharedLink(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     file = relationship("File")
-<<<<<<< HEAD
-=======
 
 
 class DropSession(Base):
@@ -128,4 +126,3 @@ class DropFile(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("DropSession", back_populates="files")
->>>>>>> 964afab... Redesign Quick Drop: text + multi-file sharing with dedicated UI

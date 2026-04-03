@@ -510,12 +510,7 @@
                 zone.addEventListener(event, () => zone.classList.remove('dragover'));
             });
 
-<<<<<<< HEAD
-            zone.addEventListener('drop', e => {
-                handleFiles(e.dataTransfer.files);
-            });
-=======
->>>>>>> 964afab... Redesign Quick Drop: text + multi-file sharing with dedicated UI
+            zone.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); });
         }
 
         async function getToken() {
