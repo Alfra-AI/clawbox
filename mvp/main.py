@@ -119,6 +119,12 @@ async def shared_download(code: str, db: Session = Depends(get_db)):
     )
 
 
+@app.get("/drop")
+async def drop_page():
+    """Serve the Quick Drop UI."""
+    return StaticFileResponse(STATIC_DIR / "drop.html")
+
+
 @app.get("/health")
 def health_check():
     """Health check endpoint."""

@@ -96,3 +96,36 @@ class SharedLink(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     file = relationship("File")
+<<<<<<< HEAD
+=======
+
+
+class DropSession(Base):
+    """Ephemeral drop session — text + multiple files, 10-min expiry."""
+
+    __tablename__ = "drop_sessions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String(4), unique=True, nullable=False, index=True)
+    text_content = Column(Text, nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    files = relationship("DropFile", back_populates="session", cascade="all, delete-orphan")
+
+
+class DropFile(Base):
+    """File attached to a drop session."""
+
+    __tablename__ = "drop_files"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("drop_sessions.id", ondelete="CASCADE"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    content_type = Column(String(100), nullable=False)
+    size_bytes = Column(BigInteger, nullable=False)
+    storage_path = Column(String(512), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("DropSession", back_populates="files")
+>>>>>>> 964afab... Redesign Quick Drop: text + multi-file sharing with dedicated UI
