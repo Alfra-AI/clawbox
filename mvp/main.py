@@ -17,7 +17,7 @@ from mvp.config import settings
 from mvp.database import ensure_pgvector_extension, get_db
 from mvp.models import SharedLink, File as FileModel
 from mvp.oauth import register_google
-from mvp.routes import files, oauth, search, tokens
+from mvp.routes import drops, files, oauth, search, tokens
 from mvp.storage import get_storage_backend
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -65,6 +65,7 @@ app.include_router(tokens.router)
 app.include_router(files.router)
 app.include_router(search.router)
 app.include_router(oauth.router)
+app.include_router(drops.router)
 
 
 DROP_DOMAINS = {"qdrop.cc", "www.qdrop.cc"}

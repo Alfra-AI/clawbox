@@ -17,7 +17,7 @@ from mvp.storage import get_storage_backend
 
 router = APIRouter(prefix="/drop", tags=["drop"])
 
-MAX_TOTAL_SIZE = 10 * 1024 * 1024  # 10 MB total per drop
+MAX_TOTAL_SIZE = 200 * 1024 * 1024  # 200 MB total per drop
 MAX_TEXT_SIZE = 100_000  # 100K chars (~100 KB)
 EXPIRY_MINUTES = 10
 

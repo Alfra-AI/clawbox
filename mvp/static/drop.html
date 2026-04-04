@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClawBox Drop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Qdrop</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -11,168 +11,165 @@
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh; color: #e0e0e0;
             display: flex; flex-direction: column; align-items: center;
-            padding: 20px;
+            padding: 16px;
         }
-        h1 { color: #00d4ff; font-size: 1.8rem; margin: 30px 0 8px; }
-        .subtitle { color: #666; font-size: 0.95rem; margin-bottom: 30px; }
-        .card {
-            background: rgba(255,255,255,0.05); border-radius: 16px; padding: 28px;
-            border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 480px;
-            margin-bottom: 16px;
-        }
-        .tabs {
-            display: flex; gap: 0; margin-bottom: 24px; border-radius: 8px; overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .tab {
-            flex: 1; padding: 12px; text-align: center; cursor: pointer;
-            background: rgba(255,255,255,0.03); font-weight: 500; font-size: 0.95rem;
-            transition: background 0.2s;
-        }
-        .tab.active { background: rgba(0,212,255,0.15); color: #00d4ff; }
-        .tab:hover:not(.active) { background: rgba(255,255,255,0.07); }
+        h1 { color: #00d4ff; font-size: 1.6rem; margin: 20px 0 4px; }
+        .subtitle { color: #555; font-size: 0.85rem; margin-bottom: 20px; }
 
-        /* Send view */
+        .page { width: 100%; max-width: 440px; }
+
+        .card {
+            background: rgba(255,255,255,0.05); border-radius: 14px; padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1); margin-bottom: 14px;
+        }
+        .card-title {
+            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em;
+            color: #555; margin-bottom: 12px; font-weight: 600;
+        }
+
+        /* Send */
         .text-area {
             width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px; padding: 14px; color: #fff; font-size: 0.95rem;
-            resize: vertical; min-height: 80px; font-family: inherit; margin-bottom: 12px;
+            border-radius: 8px; padding: 12px; color: #fff; font-size: 0.9rem;
+            resize: vertical; min-height: 60px; font-family: inherit; margin-bottom: 10px;
         }
         .text-area:focus { outline: none; border-color: #00d4ff; }
-        .text-area::placeholder { color: #555; }
+        .text-area::placeholder { color: #444; }
+
         .upload-zone {
-            border: 2px dashed rgba(0,212,255,0.25); border-radius: 10px; padding: 24px;
+            border: 2px dashed rgba(0,212,255,0.2); border-radius: 10px; padding: 18px;
             text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
         .upload-zone:hover, .upload-zone.dragover {
             border-color: #00d4ff; background: rgba(0,212,255,0.05);
         }
-        .upload-zone p { color: #666; font-size: 0.9rem; }
-        .file-list-preview { margin-bottom: 12px; }
+        .upload-zone p { color: #555; font-size: 0.85rem; }
+
+        .file-chips { margin-bottom: 8px; }
         .file-chip {
-            display: inline-flex; align-items: center; gap: 6px;
-            background: rgba(0,212,255,0.1); border-radius: 20px;
-            padding: 6px 12px; font-size: 0.8rem; margin: 3px;
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(0,212,255,0.1); border-radius: 16px;
+            padding: 4px 10px; font-size: 0.75rem; margin: 2px;
         }
-        .file-chip .remove { cursor: pointer; color: #888; font-size: 1rem; }
+        .file-chip .remove { cursor: pointer; color: #888; }
         .file-chip .remove:hover { color: #ef4444; }
+
+        .size-hint { color: #444; font-size: 0.75rem; text-align: right; margin-bottom: 8px; }
+
         button {
-            width: 100%; padding: 14px; border-radius: 8px; border: none; cursor: pointer;
-            font-size: 1.05rem; font-weight: 600; transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%; padding: 12px; border-radius: 8px; border: none; cursor: pointer;
+            font-size: 1rem; font-weight: 600; transition: transform 0.15s, box-shadow 0.15s;
         }
         button:hover { transform: translateY(-1px); }
         button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-        .btn-primary {
-            background: linear-gradient(135deg, #00d4ff, #0099cc); color: #fff;
-        }
-        .btn-primary:hover { box-shadow: 0 4px 16px rgba(0,212,255,0.3); }
-        .btn-secondary {
-            background: rgba(255,255,255,0.1); color: #e0e0e0; margin-top: 8px;
-        }
+        .btn-primary { background: linear-gradient(135deg, #00d4ff, #0099cc); color: #fff; }
+        .btn-primary:hover { box-shadow: 0 4px 12px rgba(0,212,255,0.3); }
+        .btn-secondary { background: rgba(255,255,255,0.08); color: #ccc; margin-top: 6px; }
+        .btn-small { width: auto; padding: 8px 16px; font-size: 0.85rem; }
 
-        /* Result view */
+        /* Result overlay */
+        .result-overlay {
+            position: fixed; inset: 0; background: rgba(10,10,30,0.95);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; padding: 20px;
+        }
         .code-display {
-            font-size: 4rem; font-weight: 800; color: #4ade80; letter-spacing: 0.4em;
-            text-align: center; font-family: 'Monaco','Menlo',monospace; margin: 16px 0;
-            text-indent: 0.4em;
+            font-size: 4.5rem; font-weight: 800; color: #4ade80; letter-spacing: 0.5em;
+            font-family: 'Monaco','Menlo',monospace; margin: 16px 0 8px;
+            text-indent: 0.5em;
         }
-        .expires { color: #666; font-size: 0.85rem; text-align: center; }
+        .expires { color: #555; font-size: 0.85rem; }
         .countdown { color: #f59e0b; font-weight: 600; }
+        .result-actions { display: flex; gap: 8px; margin-top: 16px; }
+        .result-actions button { width: auto; padding: 10px 24px; }
 
-        /* Receive view */
-        .code-input {
-            display: flex; justify-content: center; gap: 10px; margin: 16px 0;
-        }
+        /* Receive */
+        .code-input { display: flex; justify-content: center; gap: 8px; }
         .code-input input {
-            width: 52px; height: 64px; text-align: center; font-size: 1.8rem;
+            width: 48px; height: 58px; text-align: center; font-size: 1.6rem;
             font-weight: 700; background: rgba(0,0,0,0.3);
-            border: 2px solid rgba(255,255,255,0.15); border-radius: 10px; color: #fff;
+            border: 2px solid rgba(255,255,255,0.12); border-radius: 10px; color: #fff;
             font-family: 'Monaco','Menlo',monospace;
         }
         .code-input input:focus { outline: none; border-color: #00d4ff; }
 
-        /* Received content */
+        .receive-result { margin-top: 14px; }
         .received-text {
-            background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px;
-            margin-bottom: 12px; white-space: pre-wrap; word-break: break-word;
-            font-size: 0.95rem; color: #4ade80; max-height: 200px; overflow-y: auto;
+            background: rgba(0,0,0,0.3); border-radius: 8px; padding: 14px;
+            margin-bottom: 10px; white-space: pre-wrap; word-break: break-word;
+            font-size: 0.9rem; color: #4ade80; max-height: 180px; overflow-y: auto;
         }
         .received-file {
             display: flex; align-items: center; justify-content: space-between;
-            background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px;
-            margin-bottom: 8px;
+            background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px 12px;
+            margin-bottom: 6px;
         }
-        .received-file .name { font-weight: 500; word-break: break-all; }
-        .received-file .size { color: #888; font-size: 0.8rem; }
-        .received-file button { width: auto; padding: 8px 16px; font-size: 0.85rem; }
-        .status-msg { text-align: center; color: #888; padding: 20px; }
-        .success-icon { font-size: 2rem; text-align: center; margin-bottom: 8px; }
+        .received-file .name { font-weight: 500; word-break: break-all; font-size: 0.9rem; }
+        .received-file .size { color: #666; font-size: 0.75rem; }
+        .status-msg { text-align: center; color: #666; padding: 14px; font-size: 0.9rem; }
+
+        .divider { height: 1px; background: rgba(255,255,255,0.06); margin: 0 -20px; }
 
         .hidden { display: none !important; }
 
         .notification {
-            position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
-            padding: 12px 24px; border-radius: 8px; color: #fff; font-weight: 500;
-            z-index: 1000; font-size: 0.9rem;
+            position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+            padding: 10px 20px; border-radius: 8px; color: #fff; font-weight: 500;
+            z-index: 200; font-size: 0.85rem; max-width: 90%;
         }
         .notification.success { background: #22c55e; }
         .notification.error { background: #ef4444; }
 
-        .size-hint { color: #555; font-size: 0.8rem; margin-top: 4px; text-align: right; }
-
         @media (max-width: 500px) {
-            body { padding: 12px; }
-            .card { padding: 20px; }
-            h1 { font-size: 1.5rem; }
-            .code-display { font-size: 3rem; }
-            .code-input input { width: 46px; height: 56px; font-size: 1.5rem; }
+            body { padding: 10px; }
+            h1 { font-size: 1.4rem; margin-top: 12px; }
+            .card { padding: 16px; }
+            .code-display { font-size: 3.2rem; }
+            .code-input input { width: 44px; height: 52px; font-size: 1.4rem; }
         }
     </style>
 </head>
 <body>
-    <h1>ClawBox Drop</h1>
-    <p class="subtitle">Share text & files instantly. No sign-up needed.</p>
+    <h1>Qdrop</h1>
+    <p class="subtitle">Share text & files instantly</p>
 
-    <div class="card">
-        <div class="tabs">
-            <div class="tab active" id="tabSend" onclick="switchTab('send')">Send</div>
-            <div class="tab" id="tabReceive" onclick="switchTab('receive')">Receive</div>
-        </div>
-
-        <!-- SEND VIEW -->
-        <div id="sendView">
-            <textarea class="text-area" id="dropText" placeholder="Paste text to share..." rows="3"></textarea>
+    <div class="page">
+        <!-- SEND -->
+        <div class="card" id="sendCard">
+            <div class="card-title">Send</div>
+            <textarea class="text-area" id="dropText" placeholder="Paste text, links, passwords..." rows="2"></textarea>
             <div class="upload-zone" id="dropZone" onclick="document.getElementById('dropFileInput').click()">
                 <p>Tap to add files or drag & drop</p>
             </div>
-            <input type="file" id="dropFileInput" multiple style="display:none" onchange="addFiles(this.files)">
-            <div class="file-list-preview" id="filePreview"></div>
+            <input type="file" id="dropFileInput" multiple accept="*/*" style="display:none" onchange="addFiles(this.files)">
+            <div class="file-chips" id="filePreview"></div>
             <div class="size-hint" id="sizeHint"></div>
             <button class="btn-primary" id="shareBtn" onclick="createDrop()">Share</button>
         </div>
 
-        <!-- RESULT VIEW (after share) -->
-        <div id="resultView" class="hidden">
-            <div class="success-icon">&#10003;</div>
-            <p style="text-align:center;color:#888;margin-bottom:4px;">Your code:</p>
-            <div class="code-display" id="resultCode"></div>
-            <p class="expires">Expires in <span class="countdown" id="countdown"></span></p>
-            <button class="btn-secondary" onclick="copyCode()">Copy Code</button>
-            <button class="btn-secondary" onclick="resetSend()">New Drop</button>
-        </div>
-
-        <!-- RECEIVE VIEW -->
-        <div id="receiveView" class="hidden">
-            <p style="text-align:center;color:#888;margin-bottom:8px;">Enter the 4-digit code</p>
+        <!-- RECEIVE -->
+        <div class="card">
+            <div class="card-title">Receive</div>
             <div class="code-input" id="codeInputs">
-                <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" autofocus>
+                <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]">
                 <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]">
                 <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]">
                 <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]">
             </div>
-            <div id="receiveContent" class="hidden"></div>
-            <div id="receiveStatus" class="status-msg">Enter the code to receive</div>
+            <div id="receiveResult" class="receive-result hidden"></div>
+            <div id="receiveStatus" class="status-msg hidden"></div>
+        </div>
+    </div>
+
+    <!-- Result overlay (shown after sharing) -->
+    <div id="resultOverlay" class="result-overlay hidden">
+        <p style="color:#888;font-size:0.9rem;">Your code</p>
+        <div class="code-display" id="resultCode"></div>
+        <p class="expires">Expires in <span class="countdown" id="countdown"></span></p>
+        <div class="result-actions">
+            <button class="btn-secondary btn-small" onclick="copyCode()">Copy Code</button>
+            <button class="btn-secondary btn-small" onclick="closeResult()">Done</button>
         </div>
     </div>
 
@@ -181,23 +178,6 @@
         let pendingFiles = [];
         let dropCode = '';
         let countdownInterval = null;
-
-        // --- Tab switching ---
-        function switchTab(tab) {
-            document.getElementById('tabSend').classList.toggle('active', tab === 'send');
-            document.getElementById('tabReceive').classList.toggle('active', tab === 'receive');
-            document.getElementById('sendView').classList.toggle('hidden', tab !== 'send');
-            document.getElementById('resultView').classList.add('hidden');
-            document.getElementById('receiveView').classList.toggle('hidden', tab !== 'receive');
-            if (tab === 'receive') {
-                const inputs = document.querySelectorAll('#codeInputs input');
-                inputs.forEach(i => i.value = '');
-                inputs[0].focus();
-                document.getElementById('receiveContent').classList.add('hidden');
-                document.getElementById('receiveStatus').textContent = 'Enter the code to receive';
-                document.getElementById('receiveStatus').classList.remove('hidden');
-            }
-        }
 
         // --- Send: file management ---
         function addFiles(fileList) {
@@ -217,7 +197,7 @@
                 `<span class="file-chip">${f.name} (${formatBytes(f.size)})<span class="remove" onclick="removeFile(${i})">&times;</span></span>`
             ).join('');
             const total = pendingFiles.reduce((s, f) => s + f.size, 0);
-            document.getElementById('sizeHint').textContent = `${formatBytes(total)} / 10 MB`;
+            document.getElementById('sizeHint').textContent = `${formatBytes(total)} / 200 MB`;
         }
 
         // Drag and drop
@@ -252,10 +232,8 @@
                 const data = await res.json();
                 dropCode = data.code;
 
-                // Show result
-                document.getElementById('sendView').classList.add('hidden');
-                document.getElementById('resultView').classList.remove('hidden');
                 document.getElementById('resultCode').textContent = data.code;
+                document.getElementById('resultOverlay').classList.remove('hidden');
                 startCountdown(new Date(data.expires_at + 'Z'));
             } catch (err) {
                 notify('Share failed', 'error');
@@ -268,12 +246,12 @@
             notify('Code copied!', 'success');
         }
 
-        function resetSend() {
+        function closeResult() {
+            document.getElementById('resultOverlay').classList.add('hidden');
             pendingFiles = [];
             document.getElementById('dropText').value = '';
-            renderFilePreview();
-            document.getElementById('resultView').classList.add('hidden');
-            document.getElementById('sendView').classList.remove('hidden');
+            document.getElementById('filePreview').innerHTML = '';
+            document.getElementById('sizeHint').textContent = '';
             document.getElementById('shareBtn').disabled = false;
             document.getElementById('shareBtn').textContent = 'Share';
             if (countdownInterval) clearInterval(countdownInterval);
@@ -320,7 +298,7 @@
             if (code.length !== 4) return;
 
             const statusEl = document.getElementById('receiveStatus');
-            const contentEl = document.getElementById('receiveContent');
+            const contentEl = document.getElementById('receiveResult');
             statusEl.textContent = 'Loading...';
             statusEl.classList.remove('hidden');
             contentEl.classList.add('hidden');
@@ -338,17 +316,15 @@
 
                 let html = '';
 
-                // Text — auto-copy to clipboard
                 if (data.text) {
                     html += `<div class="received-text">${escapeHtml(data.text)}</div>`;
-                    html += `<button class="btn-secondary" onclick="copyText()" style="margin-bottom:12px;">Copy Text</button>`;
+                    html += `<button class="btn-secondary" onclick="copyText()" style="margin-bottom:10px;">Copy Text</button>`;
                     try {
                         await navigator.clipboard.writeText(data.text);
                         notify('Text copied to clipboard!', 'success');
                     } catch (e) {}
                 }
 
-                // Files
                 if (data.files && data.files.length) {
                     for (const f of data.files) {
                         html += `
@@ -357,10 +333,9 @@
                                     <div class="name">${escapeHtml(f.filename)}</div>
                                     <div class="size">${formatBytes(f.size_bytes)}</div>
                                 </div>
-                                <button class="btn-primary" style="width:auto;padding:8px 16px;font-size:0.85rem;" onclick="downloadFile('${code}','${f.id}','${escapeHtml(f.filename)}')">Download</button>
+                                <button class="btn-primary btn-small" onclick="downloadFile('${code}','${f.id}','${escapeHtml(f.filename)}')">Download</button>
                             </div>`;
                     }
-                    // Auto-download if single file
                     if (data.files.length === 1) {
                         downloadFile(code, data.files[0].id, data.files[0].filename);
                     }
@@ -372,7 +347,6 @@
             }
         }
 
-        let receivedText = '';
         async function copyText() {
             const textEl = document.querySelector('.received-text');
             if (textEl) {
@@ -408,10 +382,9 @@
             setTimeout(() => d.remove(), 3000);
         }
 
-        // Check URL for code (e.g., /drop?code=1234 or /drop#1234)
+        // Auto-receive from URL param
         const urlCode = new URLSearchParams(window.location.search).get('code');
         if (urlCode && urlCode.length === 4) {
-            switchTab('receive');
             urlCode.split('').forEach((ch, i) => { if (codeInputs[i]) codeInputs[i].value = ch; });
             setTimeout(checkCode, 100);
         }
