@@ -1,75 +1,85 @@
-# Quick Drop - Ephemeral File Sharing
+# Qdrop - Ephemeral Text & File Sharing
 
 ## Problem
-AirDrop doesn't work cross-platform. Sometimes you just want to send a file to someone (or yourself on another device) without it living in cloud storage forever.
+AirDrop doesn't work cross-platform. Sometimes you just want to send a file or text to someone (or yourself on another device) without it living in cloud storage forever.
 
 ## Concept
-Upload a file, get a short link. The file auto-deletes after download or expiry. No account needed.
+Share text and/or files, get a 4-digit PIN. Receiver enters the PIN to get everything. Expires in 10 minutes. No account needed.
 
-## Key Design Decisions
+## Status: Implemented & Deployed
 
-### Link Format
-- `https://clawbox.ink/d/<code>` — short 6-character alphanumeric code
-- Easy to type on another device, share via chat, or display as QR code
-- Example: `clawbox.ink/d/x7Km9p`
+**Domain:** www.qdrop.cc
+**Branch:** feature/self-hosting (also feature/quick-drop)
 
-### Expiry Rules
-- Default: expires after **first download** OR **24 hours**, whichever comes first
-- Options at upload time:
-  - `burn_after_read: true` (default) — deleted after first download
-  - `expires_in: 3600` — custom TTL in seconds (max 7 days)
-  - `max_downloads: 5` — allow multiple downloads before expiry
+### What's Built
+- [x] 4-digit numeric PIN (easy to type/say aloud)
+- [x] Text sharing (auto-copies to recipient's clipboard)
+- [x] Multi-file sharing (up to 200 MB total)
+- [x] 10-minute expiry with countdown
+- [x] Dedicated UI at /drop (and served at www.qdrop.cc root)
+- [x] Send and Receive on one page (no tabs)
+- [x] Code shown as fullscreen overlay after sharing
+- [x] Mobile-friendly responsive design
+- [x] PIN input with auto-advance and paste support
+- [x] Auto-download for single file drops
+- [x] Host-based routing (qdrop.cc → drop page, clawbox.ink → main app)
+- [x] SSL certificate for qdrop.cc on ALB
+- [x] DNS configured (www.qdrop.cc → ALB)
 
-### Storage
-- Files stored in S3 with lifecycle policy as safety net
-- Separate S3 prefix (`drops/`) from persistent files
-- No embeddings generated (not searchable)
-- **No token required** to upload or download — friction-free
+### Known Limitations
+- **iOS photo conversion:** iOS converts HEIC to JPEG on web upload. This is a system-level limitation affecting all browsers on iOS. Workaround: upload from Files app instead of Photos to preserve original format.
+- **iOS photo saving:** Downloads go to Files app, not Photos library. No web API to save directly to Photos. Workaround: display images inline so users can long-press → "Add to Photos".
+- **Root domain:** qdrop.cc (without www) doesn't work — NameSilo doesn't support CNAME on root domain. Only www.qdrop.cc works.
 
-### Size Limits
-- Max 100 MB per drop (larger than the 10 MB token quota since it's ephemeral)
-- Rate limit: 10 drops per hour per IP
+### TODO
+- [ ] Display received images inline (preview) instead of auto-download — enables long-press → Save to Photos on iOS
+- [ ] QR code display alongside PIN code
+- [ ] Rate limiting (prevent abuse)
+- [ ] Cleanup cron for expired sessions (currently cleaned on next request)
+- [ ] End-to-end encryption (encrypt in browser, key in URL fragment)
+- [ ] Password-protected drops
 
-## Schema
+## Architecture
+
+### Schema
 
 ```sql
-CREATE TABLE drops (
+CREATE TABLE drop_sessions (
     id UUID PRIMARY KEY,
-    code VARCHAR(10) UNIQUE NOT NULL,
+    code VARCHAR(4) NOT NULL UNIQUE,
+    text_content TEXT,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE drop_files (
+    id UUID PRIMARY KEY,
+    session_id UUID NOT NULL REFERENCES drop_sessions(id) ON DELETE CASCADE,
     filename VARCHAR(255) NOT NULL,
     content_type VARCHAR(100) NOT NULL,
     size_bytes BIGINT NOT NULL,
     storage_path VARCHAR(512) NOT NULL,
-    burn_after_read BOOLEAN DEFAULT true,
-    max_downloads INTEGER DEFAULT 1,
-    download_count INTEGER DEFAULT 0,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT now(),
-    created_by_ip VARCHAR(45)  -- for rate limiting
+    created_at TIMESTAMP DEFAULT now()
 );
-CREATE INDEX ix_drops_code ON drops (code);
-CREATE INDEX ix_drops_expires_at ON drops (expires_at);
 ```
 
-## API
+### API
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/drop` | POST | None | Upload a file, returns `{code, url, expires_at}` |
-| `/d/<code>` | GET | None | Download page (shows filename, size, download button) |
-| `/d/<code>/download` | GET | None | Direct file download |
+| `POST /drop` | POST | None | Create drop (text + files), returns 4-digit code |
+| `GET /drop/{code}` | GET | None | Get drop contents (text + file list) |
+| `GET /drop/{code}/file/{id}` | GET | None | Download a specific file |
 
-## Web UI
-- New "Quick Drop" tab/section on the homepage
-- Drag & drop zone (separate from persistent upload)
-- After upload: shows the short link + QR code + "Copy Link" button
-- Download page: clean, minimal — filename, size, big download button
+### Limits
+- 200 MB total files per session
+- 100K characters text per session
+- 10-minute expiry
+- 4-digit PIN (10,000 combinations — sufficient for 10-min window)
 
-## Cleanup
-- Background task (or cron) deletes expired drops every 5 minutes
-- S3 lifecycle policy as backup (delete objects in `drops/` older than 8 days)
-
-## Future
-- Optional password protection
-- End-to-end encryption (encrypt in browser, key in URL fragment)
-- Drop history for logged-in users
+### Files
+- `mvp/routes/drops.py` — API routes
+- `mvp/models.py` — DropSession, DropFile models
+- `mvp/static/drop.html` — Qdrop UI
+- `mvp/main.py` — host-based routing for qdrop.cc
+- `alembic/versions/20260329_0005_add_drops_table.py` — migration
