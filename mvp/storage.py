@@ -96,12 +96,14 @@ class S3StorageBackend(StorageBackend):
         self.bucket_name = bucket_name or settings.s3_bucket_name
         self.region = region or settings.aws_region
 
-        self.s3_client = boto3.client(
-            "s3",
-            region_name=self.region,
-            aws_access_key_id=settings.aws_access_key_id or None,
-            aws_secret_access_key=settings.aws_secret_access_key or None,
-        )
+        client_kwargs = {
+            "region_name": self.region,
+            "aws_access_key_id": settings.aws_access_key_id or None,
+            "aws_secret_access_key": settings.aws_secret_access_key or None,
+        }
+        if settings.s3_endpoint_url:
+            client_kwargs["endpoint_url"] = settings.s3_endpoint_url
+        self.s3_client = boto3.client("s3", **client_kwargs)
 
     def _get_s3_key(self, token_id: UUID, file_id: UUID, filename: str) -> str:
         """Generate S3 key for a file."""
