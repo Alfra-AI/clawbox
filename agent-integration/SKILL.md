@@ -9,15 +9,8 @@ CLI for ClawBox / AgentBox — a cloud file system for agents with token-based a
 
 ## Setup
 
-Install the CLI:
-
 ```bash
-pip install git+https://github.com/Tanggy123/agentbox.git
-```
-
-Or if working from a local clone:
-
-```bash
+git clone https://github.com/Tanggy123/agentbox.git
 cd agentbox
 pip install .
 ```
