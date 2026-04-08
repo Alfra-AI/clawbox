@@ -1,0 +1,40 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql://clawbox:clawbox@db:5432/clawbox
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_PATH: /app/data
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:-change-me-to-a-random-string}
+      APP_URL: ${APP_URL:-http://localhost:8000}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    volumes:
+      - file_data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: clawbox
+      POSTGRES_PASSWORD: clawbox
+      POSTGRES_DB: clawbox
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clawbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  file_data:

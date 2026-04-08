@@ -14,19 +14,23 @@ class Settings(BaseSettings):
     storage_backend: str = "local"  # "local" or "s3"
     local_storage_path: Path = Path("./data")
 
-    # AWS / S3
+    # S3-compatible storage (AWS S3, MinIO, GCS, Azure Blob, DO Spaces, etc.)
     aws_region: str = "us-east-1"
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     s3_bucket_name: str = ""
+    s3_endpoint_url: str = ""  # Leave empty for AWS S3, set for MinIO/GCS/etc.
 
     # Token settings
     default_storage_limit_bytes: int = 1024 * 1024 * 1024  # 1 GB
 
-    # OpenAI
+    # OpenAI (legacy, kept for backward compat)
     openai_api_key: str = ""
-    embedding_model: str = "text-embedding-3-small"
-    embedding_dimensions: int = 1536
+
+    # Google Gemini (primary embedding provider)
+    google_api_key: str = ""
+    embedding_model: str = "gemini-embedding-2-preview"
+    embedding_dimensions: int = 768
 
     # Google OAuth
     google_client_id: str = ""

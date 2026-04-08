@@ -5,7 +5,7 @@ from pathlib import Path
 
 from datetime import datetime
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse as StaticFileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -17,7 +17,7 @@ from mvp.config import settings
 from mvp.database import ensure_pgvector_extension, get_db
 from mvp.models import SharedLink, File as FileModel
 from mvp.oauth import register_google
-from mvp.routes import files, oauth, search, tokens
+from mvp.routes import drops, files, oauth, search, tokens
 from mvp.storage import get_storage_backend
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -28,6 +28,14 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     ensure_pgvector_extension()
+    # Auto-run database migrations
+    try:
+        from alembic.config import Config as AlembicConfig
+        from alembic import command
+        alembic_cfg = AlembicConfig("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+    except Exception:
+        pass  # alembic.ini may not exist in some deployments
     register_google()
     yield
     # Shutdown
@@ -57,11 +65,18 @@ app.include_router(tokens.router)
 app.include_router(files.router)
 app.include_router(search.router)
 app.include_router(oauth.router)
+app.include_router(drops.router)
+
+
+DROP_DOMAINS = {"qdrop.cc", "www.qdrop.cc"}
 
 
 @app.get("/")
-async def index():
-    """Serve the web UI."""
+async def index(request: Request):
+    """Serve the web UI, or drop page if accessed via qdrop.cc."""
+    host = request.headers.get("host", "").split(":")[0]
+    if host in DROP_DOMAINS:
+        return StaticFileResponse(STATIC_DIR / "drop.html")
     return StaticFileResponse(STATIC_DIR / "index.html")
 
 
@@ -103,6 +118,12 @@ async def shared_download(code: str, db: Session = Depends(get_db)):
             "Content-Disposition": f'attachment; filename="{file_record.filename}"',
         },
     )
+
+
+@app.get("/drop")
+async def drop_page():
+    """Serve the Quick Drop UI."""
+    return StaticFileResponse(STATIC_DIR / "drop.html")
 
 
 @app.get("/health")
