@@ -7,6 +7,30 @@ description: Use the AgentBox CLI to upload, download, organize, search, and sha
 
 CLI for ClawBox / AgentBox — a cloud file system for agents with token-based auth, semantic search, folders, and file sharing.
 
+## Setup
+
+Install the CLI:
+
+```bash
+pip install git+https://github.com/Tanggy123/agentbox.git
+```
+
+Or if working from a local clone:
+
+```bash
+cd agentbox
+pip install .
+```
+
+Then initialize with a token:
+
+```bash
+agentbox init                                    # Uses clawbox.ink (hosted)
+agentbox init --api-url http://localhost:8000     # Self-hosted
+```
+
+This creates `~/.agentbox/config.json` with your token and API URL. All subsequent commands use this config automatically.
+
 ## Quick start
 
 ```bash
