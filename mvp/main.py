@@ -28,14 +28,14 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     ensure_pgvector_extension()
-    # Auto-run database migrations
-    try:
-        from alembic.config import Config as AlembicConfig
-        from alembic import command
-        alembic_cfg = AlembicConfig("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-    except Exception:
-        pass  # alembic.ini may not exist in some deployments
+    # Auto-run database migrations (disabled for now — run manually via ECS task)
+    # try:
+    #     from alembic.config import Config as AlembicConfig
+    #     from alembic import command
+    #     alembic_cfg = AlembicConfig("alembic.ini")
+    #     command.upgrade(alembic_cfg, "head")
+    # except Exception:
+    #     pass
     register_google()
     yield
     # Shutdown
