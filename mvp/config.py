@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     s3_endpoint_url: str = ""  # Leave empty for AWS S3, set for MinIO/GCS/etc.
 
     # Token settings
-    default_storage_limit_bytes: int = 10 * 1024 * 1024  # 10 MB
+    default_storage_limit_bytes: int = 1024 * 1024 * 1024  # 1 GB
 
     # OpenAI (legacy, kept for backward compat)
     openai_api_key: str = ""

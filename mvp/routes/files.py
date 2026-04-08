@@ -99,12 +99,14 @@ class BatchEmbedResponse(BaseModel):
 class BatchEmbedRequest(BaseModel):
     file_ids: Optional[List[UUID]] = None
     failed_only: bool = False
+    pending_only: bool = False
 
     @model_validator(mode="after")
     def validate_selector(self) -> "BatchEmbedRequest":
         has_file_ids = self.file_ids is not None and len(self.file_ids) > 0
-        if has_file_ids == self.failed_only:
-            raise ValueError("Provide either file_ids or failed_only=true")
+        selectors = sum([has_file_ids, self.failed_only, self.pending_only])
+        if selectors != 1:
+            raise ValueError("Provide exactly one of: file_ids, failed_only=true, or pending_only=true")
         return self
 
 
@@ -321,10 +323,11 @@ async def batch_embed_files(
     succeeded = 0
     failed = 0
 
-    if request.failed_only:
+    if request.failed_only or request.pending_only:
+        status_filter = "failed" if request.failed_only else "pending"
         file_records = (
             db.query(FileModel)
-            .filter(FileModel.token_id == token.id, FileModel.embedding_status == "failed")
+            .filter(FileModel.token_id == token.id, FileModel.embedding_status == status_filter)
             .all()
         )
         requested_ids = list(dict.fromkeys(str(file_record.id) for file_record in file_records))

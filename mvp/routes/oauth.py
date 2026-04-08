@@ -66,7 +66,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         user.picture_url = picture
 
     # Find or create token for this user (logged-in users get 1 GB)
-    LOGGED_IN_STORAGE = 1024 * 1024 * 1024  # 1 GB
+    LOGGED_IN_STORAGE = 10 * 1024 * 1024 * 1024  # 10 GB
     api_token = db.query(Token).filter(Token.user_id == user.id).first()
     if not api_token:
         api_token = Token(user_id=user.id, storage_limit_bytes=LOGGED_IN_STORAGE)
@@ -94,7 +94,7 @@ def get_current_user(
         return {"anonymous": True}
 
     # Ensure logged-in users have upgraded storage
-    LOGGED_IN_STORAGE = 1024 * 1024 * 1024  # 1 GB
+    LOGGED_IN_STORAGE = 10 * 1024 * 1024 * 1024  # 10 GB
     if token.storage_limit_bytes < LOGGED_IN_STORAGE:
         token.storage_limit_bytes = LOGGED_IN_STORAGE
         db.commit()
