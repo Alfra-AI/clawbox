@@ -82,14 +82,27 @@ def api_request(
 @app.command()
 def init(
     api_url: Optional[str] = typer.Option(None, "--api-url", "-u", help="API URL"),
+    login: bool = typer.Option(False, "--login", "-l", help="Sign in with Google (opens browser)"),
 ):
-    """Initialize AgentBox and get a new token."""
+    """Initialize AgentBox and get a new token, or sign in with Google."""
     config = get_config()
 
     if api_url:
         config["api_url"] = api_url
+        save_config(config)
 
-    # Get a new token
+    if login:
+        import webbrowser
+        base_url = get_api_url()
+        login_url = f"{base_url}/auth/google"
+        console.print(f"Opening browser for Google sign-in...")
+        console.print(f"URL: [cyan]{login_url}[/cyan]")
+        webbrowser.open(login_url)
+        console.print("\nAfter signing in, copy your token from the web UI and run:")
+        console.print("  [cyan]agentbox config --token YOUR_TOKEN[/cyan]")
+        return
+
+    # Get a new anonymous token
     response = api_request("POST", "/get_token")
 
     if response.status_code == 200:
@@ -97,9 +110,15 @@ def init(
         config["token"] = data["token"]
         save_config(config)
 
+        storage_limit = data['storage_limit_bytes']
+        if storage_limit >= 1024 * 1024 * 1024:
+            limit_str = f"{storage_limit / (1024**3):.0f} GB"
+        else:
+            limit_str = f"{storage_limit / (1024**2):.0f} MB"
+
         console.print("[green]AgentBox initialized successfully![/green]")
         console.print(f"Token: [cyan]{data['token']}[/cyan]")
-        console.print(f"Storage limit: {data['storage_limit_bytes'] / 1024 / 1024:.1f} MB")
+        console.print(f"Storage limit: {limit_str}")
         console.print(f"Config saved to: {CONFIG_FILE}")
     else:
         console.print(f"[red]Failed to get token: {response.text}[/red]")

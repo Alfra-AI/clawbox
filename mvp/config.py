@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     s3_bucket_name: str = ""
 
     # Token settings
-    default_storage_limit_bytes: int = 10 * 1024 * 1024  # 10 MB
+    default_storage_limit_bytes: int = 1024 * 1024 * 1024  # 1 GB
 
     # OpenAI
     openai_api_key: str = ""
