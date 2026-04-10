@@ -237,11 +237,11 @@ def list_files(
 
         table = Table(title=f"Files ({data['total']} total)")
         table.add_column("ID", style="cyan", no_wrap=True)
-        table.add_column("Path")
-        table.add_column("Type")
+        table.add_column("Path", overflow="fold", max_width=50)
+        table.add_column("Type", no_wrap=True)
         table.add_column("Size", justify="right")
         table.add_column("Indexed")
-        table.add_column("Created")
+        table.add_column("Created", overflow="fold")
 
         for f in data["files"]:
             size = f"{f['size_bytes']:,} B"
