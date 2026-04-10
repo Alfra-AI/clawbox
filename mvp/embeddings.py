@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 # Chunk size for text splitting (in characters)
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
+IMAGE_CAPTION_PROMPT = (
+    "Describe this image for search indexing in one short sentence. "
+    "Include only concrete visible subjects, setting, actions, colors, "
+    "and readable text. Do not guess."
+)
 
 # Content types that can be embedded directly via Gemini multimodal
 IMAGE_CONTENT_TYPES = {
@@ -167,6 +172,24 @@ def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVE
     return chunks
 
 
+def generate_image_caption(content: bytes, content_type: str) -> Optional[str]:
+    """Generate a short caption for an image to improve retrieval."""
+    if not settings.google_api_key:
+        raise ValueError("Google API key not configured")
+
+    client = get_gemini_client()
+    result = client.models.generate_content(
+        model=settings.image_caption_model,
+        contents=[
+            IMAGE_CAPTION_PROMPT,
+            types.Part.from_bytes(data=content, mime_type=content_type),
+        ],
+        config=types.GenerateContentConfig(max_output_tokens=500, temperature=0.1),
+    )
+    caption = (result.text or "").strip()
+    return caption or None
+
+
 def generate_embedding(text: str) -> List[float]:
     """Generate embedding for a single text query using Gemini."""
     if not settings.google_api_key:
@@ -175,16 +198,15 @@ def generate_embedding(text: str) -> List[float]:
     client = get_gemini_client()
     result = client.models.embed_content(
         model=settings.embedding_model,
-        contents=text,
+        contents=f"task: search query | query: {text}",
         config=types.EmbedContentConfig(
-            task_type="RETRIEVAL_QUERY",
             output_dimensionality=settings.embedding_dimensions,
         ),
     )
     return list(result.embeddings[0].values)
 
 
-def generate_embeddings_batch(texts: List[str]) -> List[List[float]]:
+def generate_embeddings_batch(texts: List[str], filename: str) -> List[List[float]]:
     """Generate embeddings for multiple texts."""
     if not settings.google_api_key:
         raise ValueError("Google API key not configured")
@@ -197,9 +219,8 @@ def generate_embeddings_batch(texts: List[str]) -> List[List[float]]:
     for text in texts:
         result = client.models.embed_content(
             model=settings.embedding_model,
-            contents=text,
+            contents=f"title: {filename} | text: {text}",
             config=types.EmbedContentConfig(
-                task_type="RETRIEVAL_DOCUMENT",
                 output_dimensionality=settings.embedding_dimensions,
             ),
         )
@@ -207,17 +228,32 @@ def generate_embeddings_batch(texts: List[str]) -> List[List[float]]:
     return embeddings
 
 
-def generate_multimodal_embedding(content: bytes, content_type: str) -> List[float]:
+def generate_multimodal_embedding(
+    content: bytes,
+    content_type: str,
+    filename: str,
+    caption: Optional[str] = None,
+) -> List[float]:
     """Generate embedding for an image, video, or audio file using Gemini multimodal embedding."""
     if not settings.google_api_key:
         raise ValueError("Google API key not configured")
 
+    if content_type in IMAGE_CONTENT_TYPES:
+        text_context = f"filename: {filename}"
+        if caption:
+            text_context = f"{text_context} | caption: {caption}"
+        embed_content: types.Content | types.Part = types.Content(parts=[
+            types.Part.from_text(text=text_context),
+            types.Part.from_bytes(data=content, mime_type=content_type),
+        ])
+    else:
+        embed_content = types.Part.from_bytes(data=content, mime_type=content_type)
+
     client = get_gemini_client()
     result = client.models.embed_content(
         model=settings.embedding_model,
-        contents=types.Part.from_bytes(data=content, mime_type=content_type),
+        contents=embed_content,
         config=types.EmbedContentConfig(
-            task_type="RETRIEVAL_DOCUMENT",
             output_dimensionality=settings.embedding_dimensions,
         ),
     )
@@ -234,24 +270,36 @@ async def generate_and_store_embeddings(
     """
     # Handle multimodal files (image/video/audio) — embed directly via Gemini
     if content_type in MULTIMODAL_CONTENT_TYPES:
+        caption = None
+        if content_type in IMAGE_CONTENT_TYPES:
+            try:
+                caption = generate_image_caption(content, content_type)
+            except Exception:
+                logger.exception("Failed to generate image caption for file %s", file.id)
+
         try:
-            embedding = generate_multimodal_embedding(content, content_type)
+            embedding = generate_multimodal_embedding(
+                content,
+                content_type,
+                file.filename,
+                caption=caption,
+            )
         except Exception:
             logger.exception("Failed to generate multimodal embedding for file %s", file.id)
             return False
 
         # Determine label for the chunk text placeholder
         if content_type in IMAGE_CONTENT_TYPES:
-            label = "image"
+            label = caption or f"[image: {file.filename}]"
         elif content_type in VIDEO_CONTENT_TYPES:
-            label = "video"
+            label = f"[video: {file.filename}]"
         else:
-            label = "audio"
+            label = f"[audio: {file.filename}]"
 
         file_embedding = FileEmbedding(
             file_id=file.id,
             chunk_index=0,
-            chunk_text=f"[{label}: {file.filename}]",
+            chunk_text=label,
             embedding=embedding,
         )
         db.add(file_embedding)
@@ -306,7 +354,7 @@ async def generate_and_store_embeddings(
 
     # Generate embeddings
     try:
-        embeddings = generate_embeddings_batch(chunks)
+        embeddings = generate_embeddings_batch(chunks, file.filename)
     except Exception:
         logger.exception("Failed to generate embeddings for file %s", file.id)
         return False

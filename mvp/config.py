@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     embedding_model: str = "gemini-embedding-2-preview"
     embedding_dimensions: int = 768
+    image_caption_model: str = "gemini-3-flash-preview"
 
     # Google OAuth
     google_client_id: str = ""
