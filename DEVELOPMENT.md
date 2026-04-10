@@ -53,6 +53,26 @@ alembic revision --autogenerate -m "describe change"
 
 Review the generated migration before committing it.
 
+### Pulling migration changes from remote
+
+If you have local-only (uncommitted) migrations applied to your database, **downgrade
+out of them before pulling** new migration files that may reorganize the history:
+
+```bash
+# 1. Revert your local-only migration(s)
+alembic downgrade -1   # repeat for each local-only migration
+
+# 2. Pull the latest code
+git pull
+
+# 3. Apply the updated migration chain
+alembic upgrade head
+```
+
+If you skip step 1, `git pull` may delete or rename migration files that your database
+still references. Alembic cannot resolve an orphaned revision and will refuse to run
+any command — the only recovery is manually updating the `alembic_version` table.
+
 ## Existing Local Databases
 
 If you already created tables locally before Alembic was added, run:
