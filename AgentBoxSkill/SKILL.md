@@ -19,7 +19,7 @@ bash AgentBoxSkill/scripts/setup.sh
 Or manually:
 
 ```bash
-git clone https://github.com/Tanggy123/agentbox.git
+git clone https://github.com/Alfra-AI/agentbox.git
 cd agentbox
 pip install .
 agentbox init

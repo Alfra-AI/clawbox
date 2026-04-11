@@ -3,7 +3,7 @@
 ## Quick Start (Docker Compose)
 
 ```bash
-git clone https://github.com/Tanggy123/agentbox.git
+git clone https://github.com/Alfra-AI/agentbox.git
 cd agentbox
 cp .env.example .env
 docker compose up
