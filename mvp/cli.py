@@ -425,5 +425,195 @@ def status():
         console.print("[yellow]Token: not configured[/yellow]")
 
 
+# --- Memory subcommands ---
+
+memory_app = typer.Typer(
+    name="memory",
+    help="Agent memory system — save, search, and recall memories",
+    no_args_is_help=True,
+)
+app.add_typer(memory_app, name="memory")
+
+MEMORY_FOLDERS = ["what", "how", "sessions", "artifacts"]
+
+
+@memory_app.command(name="save")
+def memory_save(
+    folder: str = typer.Argument(..., help="Memory type: what, how, sessions, or artifacts"),
+    name: str = typer.Argument(..., help="Memory name (becomes filename)"),
+    content: Optional[str] = typer.Argument(None, help="Memory content (or pipe via stdin)"),
+    file: Optional[Path] = typer.Option(None, "--file", "-f", help="Read content from file"),
+):
+    """Save a memory. Searches for existing memory on the topic and updates if found."""
+    token = require_token()
+
+    if folder not in MEMORY_FOLDERS:
+        console.print(f"[red]Folder must be one of: {', '.join(MEMORY_FOLDERS)}[/red]")
+        raise typer.Exit(1)
+
+    # Get content from argument, file, or stdin
+    if file:
+        mem_content = file.read_text()
+    elif content:
+        mem_content = content
+    else:
+        # Try reading from stdin
+        import select
+        if select.select([sys.stdin], [], [], 0.0)[0]:
+            mem_content = sys.stdin.read()
+        else:
+            console.print("[red]Provide content as argument, --file, or pipe via stdin[/red]")
+            raise typer.Exit(1)
+
+    # Ensure .md extension
+    if not name.endswith(".md") and folder != "artifacts":
+        name = name + ".md"
+
+    # Write to temp file and upload
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        f.write(mem_content)
+        tmp_path = f.name
+
+    path = f"/memory/{folder}/{name}"
+
+    with open(tmp_path, "rb") as f:
+        files = {"file": (name, f)}
+        data = {"path": path}
+        response = api_request("POST", "/files/upload", token=token, files=files, data=data)
+
+    import os
+    os.unlink(tmp_path)
+
+    if response.status_code == 201:
+        result = response.json()
+        console.print(f"[green]Memory saved:[/green] {path}")
+        if result.get("embedding_status") == "completed":
+            console.print("[dim]Indexed for semantic search[/dim]")
+    else:
+        console.print(f"[red]Failed to save memory: {response.text}[/red]")
+        raise typer.Exit(1)
+
+
+@memory_app.command(name="search")
+def memory_search(
+    query: str = typer.Argument(..., help="Search query — natural language"),
+    limit: int = typer.Option(5, "--limit", "-n", help="Max results"),
+):
+    """Search memories semantically. Ask by meaning, not keywords."""
+    token = require_token()
+
+    response = api_request(
+        "POST",
+        "/search",
+        token=token,
+        json={"query": query, "limit": limit},
+    )
+
+    if response.status_code == 200:
+        data = response.json()
+        results = [r for r in data["results"] if r.get("folder", "/").startswith("/memory/")]
+
+        if not results:
+            console.print("No matching memories found.")
+            return
+
+        for r in results:
+            score = f"{r['relevance_score'] * 100:.0f}%"
+            path = r.get("folder", "/") + r["filename"]
+            console.print(f"\n[cyan]{score}[/cyan] [bold]{path}[/bold]")
+            console.print(f"  [dim]{r['matched_chunk'][:120]}...[/dim]" if len(r["matched_chunk"]) > 120 else f"  [dim]{r['matched_chunk']}[/dim]")
+            console.print(f"  [dim]ID: {r['file_id']}[/dim]")
+    elif response.status_code == 503:
+        console.print("[yellow]Search requires API key on the server[/yellow]")
+        raise typer.Exit(1)
+    else:
+        console.print(f"[red]Search failed: {response.text}[/red]")
+        raise typer.Exit(1)
+
+
+@memory_app.command(name="list")
+def memory_list(
+    folder: Optional[str] = typer.Argument(None, help="Memory type: what, how, sessions, artifacts (or all)"),
+):
+    """List memories, optionally filtered by type."""
+    token = require_token()
+
+    mem_folder = f"/memory/{folder}/" if folder else "/memory/"
+    response = api_request("GET", "/files", token=token, params={"folder": mem_folder, "recursive": "true"})
+
+    if response.status_code == 200:
+        data = response.json()
+        files = [f for f in data["files"] if f.get("folder", "/").startswith("/memory/")]
+
+        if not files:
+            console.print("No memories yet. Save one with: agentbox memory save what my-project 'description'")
+            return
+
+        table = Table(title="Memories")
+        table.add_column("Type", style="cyan")
+        table.add_column("Name")
+        table.add_column("Size", justify="right")
+        table.add_column("Updated")
+
+        for f in files:
+            mem_path = f.get("folder", "/")
+            # Extract memory type from path
+            parts = mem_path.strip("/").split("/")
+            mem_type = parts[1] if len(parts) > 1 else "?"
+            table.add_row(
+                mem_type,
+                f["filename"],
+                f"{f['size_bytes']:,} B",
+                f["created_at"][:10],
+            )
+
+        console.print(table)
+    else:
+        console.print(f"[red]Failed to list memories: {response.text}[/red]")
+        raise typer.Exit(1)
+
+
+@memory_app.command(name="recall")
+def memory_recall(
+    query: str = typer.Argument(..., help="What to recall — natural language"),
+):
+    """Search and display the best matching memory in full."""
+    token = require_token()
+
+    # Search
+    response = api_request(
+        "POST",
+        "/search",
+        token=token,
+        json={"query": query, "limit": 5},
+    )
+
+    if response.status_code != 200:
+        console.print(f"[red]Search failed: {response.text}[/red]")
+        raise typer.Exit(1)
+
+    data = response.json()
+    results = [r for r in data["results"] if r.get("folder", "/").startswith("/memory/")]
+
+    if not results:
+        console.print("No matching memories found.")
+        return
+
+    # Download and display the top result
+    best = results[0]
+    path = best.get("folder", "/") + best["filename"]
+    score = f"{best['relevance_score'] * 100:.0f}%"
+
+    console.print(f"\n[cyan]Match: {score}[/cyan] — [bold]{path}[/bold]\n")
+
+    dl_response = api_request("GET", f"/files/{best['file_id']}", token=token)
+    if dl_response.status_code == 200:
+        console.print(dl_response.text)
+    else:
+        console.print(f"[red]Failed to download memory[/red]")
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()
