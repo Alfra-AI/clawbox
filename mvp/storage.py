@@ -37,6 +37,14 @@ class StorageBackend(ABC):
         """Check if a file exists in storage."""
         pass
 
+    def generate_presigned_upload_url(self, token_id: UUID, file_id: UUID, filename: str, expires_in: int = 3600) -> dict | None:
+        """Generate a presigned URL for direct upload. Returns None if not supported."""
+        return None
+
+    def generate_presigned_download_url(self, storage_path: str, filename: str, expires_in: int = 3600) -> str | None:
+        """Generate a presigned URL for direct download. Returns None if not supported."""
+        return None
+
 
 class LocalStorageBackend(StorageBackend):
     """Local filesystem storage backend."""
@@ -154,6 +162,28 @@ class S3StorageBackend(StorageBackend):
             return True
         except ClientError:
             return False
+
+    def generate_presigned_upload_url(self, token_id: UUID, file_id: UUID, filename: str, expires_in: int = 3600) -> dict | None:
+        """Generate a presigned URL for direct upload to S3."""
+        s3_key = self._get_s3_key(token_id, file_id, filename)
+        url = self.s3_client.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": self.bucket_name, "Key": s3_key},
+            ExpiresIn=expires_in,
+        )
+        return {"upload_url": url, "storage_path": s3_key}
+
+    def generate_presigned_download_url(self, storage_path: str, filename: str, expires_in: int = 3600) -> str | None:
+        """Generate a presigned URL for direct download from S3."""
+        return self.s3_client.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": self.bucket_name,
+                "Key": storage_path,
+                "ResponseContentDisposition": f'attachment; filename="{filename}"',
+            },
+            ExpiresIn=expires_in,
+        )
 
 
 def get_storage_backend() -> StorageBackend:

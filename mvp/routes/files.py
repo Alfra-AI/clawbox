@@ -418,13 +418,134 @@ async def batch_embed_files(
     )
 
 
+class PresignedUploadResponse(BaseModel):
+    """Response with presigned upload URL."""
+    file_id: str
+    upload_url: str
+    expires_in: int
+
+
+class PresignedUploadRequest(BaseModel):
+    """Request for a presigned upload URL."""
+    filename: str
+    content_type: str = "application/octet-stream"
+    size_bytes: int
+    path: Optional[str] = None
+
+
+@router.post("/upload-url", response_model=PresignedUploadResponse)
+def get_upload_url(
+    request: PresignedUploadRequest,
+    token: Token = Depends(get_current_token),
+    db: Session = Depends(get_db),
+) -> PresignedUploadResponse:
+    """Get a presigned URL for direct upload to storage (S3 only).
+
+    The client uploads directly to S3, then calls POST /files/confirm to register the file.
+    """
+    if not token.has_storage_available(request.size_bytes):
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Storage quota exceeded.",
+        )
+
+    storage = get_storage_backend()
+    default_filename = request.filename
+
+    # Parse virtual path
+    folder, filename = _parse_path(request.path or "", default_filename)
+
+    import os
+    ext = os.path.splitext(filename)[-1].lower()
+    content_type = EXTENSION_CONTENT_TYPES.get(ext, request.content_type)
+    embedding_status = "pending" if is_embeddable_content_type(content_type) else "not_applicable"
+
+    # Create file record
+    file_record = FileModel(
+        token_id=token.id,
+        filename=filename,
+        folder=folder,
+        content_type=content_type,
+        size_bytes=request.size_bytes,
+        storage_path="",
+        embedding_status=embedding_status,
+    )
+    db.add(file_record)
+    db.flush()
+
+    presigned = storage.generate_presigned_upload_url(token.id, file_record.id, filename)
+    if presigned is None:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Presigned uploads not supported with local storage. Use POST /files/upload instead.",
+        )
+
+    file_record.storage_path = presigned["storage_path"]
+    token.storage_used_bytes += request.size_bytes
+    db.commit()
+
+    return PresignedUploadResponse(
+        file_id=str(file_record.id),
+        upload_url=presigned["upload_url"],
+        expires_in=3600,
+    )
+
+
+class ConfirmUploadRequest(BaseModel):
+    file_id: str
+
+
+@router.post("/confirm", response_model=FileResponse)
+async def confirm_upload(
+    request: ConfirmUploadRequest,
+    token: Token = Depends(get_current_token),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Confirm a presigned upload completed. Triggers background embedding."""
+    file_record = (
+        db.query(FileModel)
+        .filter(FileModel.id == request.file_id, FileModel.token_id == token.id)
+        .first()
+    )
+    if file_record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    # Verify file exists in storage
+    storage = get_storage_backend()
+    if not await storage.exists(file_record.storage_path):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File not found in storage. Upload may not have completed.",
+        )
+
+    # Trigger background embedding
+    if file_record.embedding_status == "pending":
+        content = await storage.load(file_record.storage_path)
+        asyncio.create_task(
+            _embed_in_background(file_record.id, content, file_record.content_type)
+        )
+
+    return FileResponse(
+        id=str(file_record.id),
+        filename=file_record.filename,
+        folder=file_record.folder,
+        content_type=file_record.content_type,
+        size_bytes=file_record.size_bytes,
+        embedding_status=file_record.embedding_status,
+        created_at=file_record.created_at,
+        updated_at=file_record.updated_at,
+    )
+
+
 @router.get("/{file_id}")
 async def download_file(
     file_id: UUID,
+    direct: bool = False,
     token: Token = Depends(get_current_token),
     db: Session = Depends(get_db),
-) -> Response:
-    """Download a file by ID."""
+):
+    """Download a file by ID. Use direct=true for a presigned download URL (S3 only)."""
     file_record = (
         db.query(FileModel)
         .filter(FileModel.id == file_id, FileModel.token_id == token.id)
@@ -438,6 +559,16 @@ async def download_file(
         )
 
     storage = get_storage_backend()
+
+    # If direct=true, return a presigned URL instead of the file content
+    if direct:
+        url = storage.generate_presigned_download_url(
+            file_record.storage_path, file_record.filename
+        )
+        if url:
+            return {"download_url": url, "expires_in": 3600}
+        # Fall through to normal download if presigned not supported
+
     try:
         content = await storage.load(file_record.storage_path)
     except FileNotFoundError:
