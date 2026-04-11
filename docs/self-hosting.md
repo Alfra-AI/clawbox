@@ -10,7 +10,7 @@ The fastest way to run ClawBox on your own machine or server.
 ### Steps
 
 ```bash
-git clone https://github.com/Tanggy123/agentbox.git
+git clone https://github.com/Alfra-AI/agentbox.git
 cd agentbox
 cp .env.example .env    # Edit .env if you want to configure optional features
 docker compose up
@@ -92,7 +92,7 @@ S3_BUCKET_NAME=your-bucket
 # On macOS: brew install pgvector
 
 # Clone and install
-git clone https://github.com/Tanggy123/agentbox.git
+git clone https://github.com/Alfra-AI/agentbox.git
 cd agentbox
 python -m venv venv
 source venv/bin/activate
