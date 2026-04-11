@@ -1,5 +1,7 @@
 """File management routes."""
 
+import asyncio
+import logging
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
@@ -17,6 +19,7 @@ from mvp.storage import get_storage_backend
 from mvp.embeddings import generate_and_store_embeddings
 
 router = APIRouter(prefix="/files", tags=["files"])
+logger = logging.getLogger(__name__)
 
 # Map file extensions to correct MIME types (fallback when client sends application/octet-stream)
 EXTENSION_CONTENT_TYPES = {
@@ -236,19 +239,13 @@ async def upload_file(
     db.commit()
     db.refresh(file_record)
 
-    # Generate embeddings for embeddable file types
+    # Generate embeddings in background (don't block the upload response)
     if file_record.embedding_status == "pending":
-        try:
-            success = await generate_and_store_embeddings(
-                db, file_record, content, file_record.content_type
-            )
-            file_record.embedding_status = "completed" if success else "failed"
-        except Exception:
-            db.rollback()
-            file_record.embedding_status = "failed"
-        db.add(file_record)
-        db.commit()
-        db.refresh(file_record)
+        file_id = file_record.id
+        content_type_for_embed = file_record.content_type
+        asyncio.create_task(
+            _embed_in_background(file_id, content, content_type_for_embed)
+        )
 
     return FileResponse(
         id=str(file_record.id),
@@ -260,6 +257,31 @@ async def upload_file(
         created_at=file_record.created_at,
         updated_at=file_record.updated_at,
     )
+
+
+async def _embed_in_background(file_id: UUID, content: bytes, content_type: str):
+    """Generate embeddings in a background task."""
+    from mvp.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        file_record = db.query(FileModel).filter(FileModel.id == file_id).first()
+        if not file_record:
+            return
+
+        try:
+            success = await generate_and_store_embeddings(
+                db, file_record, content, content_type
+            )
+            file_record.embedding_status = "completed" if success else "failed"
+        except Exception:
+            logger.exception("Background embedding failed for file %s", file_id)
+            db.rollback()
+            file_record.embedding_status = "failed"
+        db.add(file_record)
+        db.commit()
+    finally:
+        db.close()
 
 
 @router.get("", response_model=FileListResponse)
