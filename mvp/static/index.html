@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgentBox - Cloud File Storage for Agents</title>
+    <title>ClawBox - Cloud File Storage for Agents</title>
     <style>
         * {
             margin: 0;
@@ -401,7 +401,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>AgentBox</h1>
+            <h1>ClawBox</h1>
             <p>Cloud File Storage for Agents</p>
         </header>
 
@@ -468,7 +468,7 @@
 
     <script>
         const API_URL = window.location.origin;
-        let token = localStorage.getItem('agentbox_token');
+        let token = localStorage.getItem('clawbox_token');
         let currentFolder = '/';
 
         // Initialize
@@ -478,7 +478,7 @@
             const oauthToken = urlParams.get('token');
             if (oauthToken) {
                 token = oauthToken;
-                localStorage.setItem('agentbox_token', token);
+                localStorage.setItem('clawbox_token', token);
                 window.history.replaceState({}, '', '/');
             }
 
@@ -518,7 +518,7 @@
                 const res = await fetch(`${API_URL}/get_token`, { method: 'POST' });
                 const data = await res.json();
                 token = data.token;
-                localStorage.setItem('agentbox_token', token);
+                localStorage.setItem('clawbox_token', token);
                 showToken();
                 updateStorage(data.storage_used_bytes, data.storage_limit_bytes);
                 notify('Token created successfully!', 'success');
@@ -539,7 +539,7 @@
         }
 
         function clearToken() {
-            localStorage.removeItem('agentbox_token');
+            localStorage.removeItem('clawbox_token');
             token = null;
             document.getElementById('noToken').classList.remove('hidden');
             document.getElementById('hasToken').classList.add('hidden');

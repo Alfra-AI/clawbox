@@ -1,4 +1,4 @@
-# AgentBox MVP (v0.0)
+# ClawBox MVP (v0.0)
 
 A minimal cloud file system for agents with semantic search capabilities.
 
@@ -41,17 +41,17 @@ initdb --locale=en_US.UTF-8 -E UTF-8 /usr/local/var/postgresql@14
 brew services start postgresql@14
 
 # Create database and user
-psql -U $USER -d postgres -c "CREATE USER agentbox WITH PASSWORD 'agentbox' CREATEDB;"
-psql -U $USER -d postgres -c "CREATE DATABASE agentbox OWNER agentbox;"
+psql -U $USER -d postgres -c "CREATE USER clawbox WITH PASSWORD 'clawbox' CREATEDB;"
+psql -U $USER -d postgres -c "CREATE DATABASE clawbox OWNER clawbox;"
 
 # Install pgvector extension
-psql -U $USER -d agentbox -c "CREATE EXTENSION IF NOT EXISTS vector;"
+psql -U $USER -d clawbox -c "CREATE EXTENSION IF NOT EXISTS vector;"
 ```
 
 ### 2. Python Environment
 
 ```bash
-# From the project root (agentbox/)
+# From the project root (clawbox/)
 python3.10 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
@@ -145,12 +145,12 @@ terraform apply
 
 # Build and push Docker image
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
-docker build -t agentbox ..
-docker tag agentbox:latest <ecr-repo-url>:latest
+docker build -t clawbox ..
+docker tag clawbox:latest <ecr-repo-url>:latest
 docker push <ecr-repo-url>:latest
 
 # Force ECS to pull new image
-aws ecs update-service --cluster agentbox-prod-cluster --service agentbox-prod --force-new-deployment
+aws ecs update-service --cluster clawbox-prod-cluster --service clawbox-prod --force-new-deployment
 ```
 
 ### Production URL

@@ -20,6 +20,6 @@ output "rds_endpoint" {
 
 output "database_url" {
   description = "Database connection string"
-  value       = "postgresql://${var.db_username}:****@${aws_db_instance.main.endpoint}/agentbox"
+  value       = "postgresql://${var.db_username}:****@${aws_db_instance.main.endpoint}/clawbox"
   sensitive   = true
 }

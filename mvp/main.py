@@ -1,4 +1,4 @@
-"""Main FastAPI application for AgentBox."""
+"""Main FastAPI application for ClawBox."""
 
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AgentBox",
+    title="ClawBox",
     description="A minimal cloud file system for agents with semantic search capabilities.",
     version=__version__,
     lifespan=lifespan,

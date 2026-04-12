@@ -1,4 +1,4 @@
-"""AgentBox CLI - Command line interface for AgentBox API."""
+"""ClawBox CLI - Command line interface for ClawBox API."""
 
 import json
 import sys
@@ -11,14 +11,14 @@ from rich.console import Console
 from rich.table import Table
 
 app = typer.Typer(
-    name="agentbox",
-    help="CLI for AgentBox - a cloud file system for agents",
+    name="clawbox",
+    help="CLI for ClawBox - a cloud file system for agents",
     no_args_is_help=True,
 )
 console = Console()
 
 # Config file location
-CONFIG_DIR = Path.home() / ".agentbox"
+CONFIG_DIR = Path.home() / ".clawbox"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 DEFAULT_API_URL = "https://clawbox.ink"
@@ -53,7 +53,7 @@ def require_token() -> str:
     """Get token or exit with error."""
     token = get_token()
     if not token:
-        console.print("[red]No token configured. Run 'agentbox init' first.[/red]")
+        console.print("[red]No token configured. Run 'clawbox init' first.[/red]")
         raise typer.Exit(1)
     return token
 
@@ -84,7 +84,7 @@ def init(
     api_url: Optional[str] = typer.Option(None, "--api-url", "-u", help="API URL"),
     login: bool = typer.Option(False, "--login", "-l", help="Sign in with Google (opens browser)"),
 ):
-    """Initialize AgentBox and get a new token, or sign in with Google."""
+    """Initialize ClawBox and get a new token, or sign in with Google."""
     config = get_config()
 
     if api_url:
@@ -99,7 +99,7 @@ def init(
         console.print(f"URL: [cyan]{login_url}[/cyan]")
         webbrowser.open(login_url)
         console.print("\nAfter signing in, copy your token from the web UI and run:")
-        console.print("  [cyan]agentbox config --token YOUR_TOKEN[/cyan]")
+        console.print("  [cyan]clawbox config --token YOUR_TOKEN[/cyan]")
         return
 
     # Get a new anonymous token
@@ -116,7 +116,7 @@ def init(
         else:
             limit_str = f"{storage_limit / (1024**2):.0f} MB"
 
-        console.print("[green]AgentBox initialized successfully![/green]")
+        console.print("[green]ClawBox initialized successfully![/green]")
         console.print(f"Token: [cyan]{data['token']}[/cyan]")
         console.print(f"Storage limit: {limit_str}")
         console.print(f"Config saved to: {CONFIG_FILE}")
@@ -177,7 +177,7 @@ def upload(
         elif embedding_status == "failed":
             console.print(
                 "[yellow]Embedding failed — file stored but not searchable. "
-                "Use 'agentbox embed --failed' to retry.[/yellow]"
+                "Use 'clawbox embed --failed' to retry.[/yellow]"
             )
     else:
         console.print(f"[red]Upload failed: {response.text}[/red]")

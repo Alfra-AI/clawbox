@@ -6,21 +6,21 @@
 Cannot connect to API at https://clawbox.ink
 ```
 
-- Check if the server is running: `agentbox status`
+- Check if the server is running: `clawbox status`
 - For local dev, start the server: `python -m mvp.main`
-- Check the configured URL: `agentbox config --show`
-- Change the URL: `agentbox config --api-url http://localhost:8000`
+- Check the configured URL: `clawbox config --show`
+- Change the URL: `clawbox config --api-url http://localhost:8000`
 
 ## Missing token
 
 ```
-No token configured. Run 'agentbox init' first.
+No token configured. Run 'clawbox init' first.
 ```
 
 ```bash
-agentbox init
+clawbox init
 # Or set manually:
-agentbox config --token <token>
+clawbox config --token <token>
 ```
 
 ## Search unavailable
@@ -39,7 +39,7 @@ Storage quota exceeded
 
 - Anonymous tokens have 10 MB storage
 - Sign in with Google at the web UI for 1 GB
-- Check current usage: `agentbox status`
+- Check current usage: `clawbox status`
 
 ## Embedding failed
 
@@ -50,9 +50,9 @@ Embedding failed — file stored but not searchable
 The file was uploaded but text extraction or embedding generation failed. Retry with:
 
 ```bash
-agentbox embed <file_id>
+clawbox embed <file_id>
 # Or retry all failed:
-agentbox embed --failed
+clawbox embed --failed
 ```
 
 ## Invalid or expired token
@@ -64,7 +64,7 @@ Invalid or expired token
 The token in your config no longer exists on the server. Get a new one:
 
 ```bash
-agentbox init
+clawbox init
 ```
 
 Note: this creates a new token — you won't have access to files from the old token unless you sign in with the same Google account.

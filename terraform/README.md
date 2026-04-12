@@ -1,6 +1,6 @@
-# AgentBox Cloud Deployment
+# ClawBox Cloud Deployment
 
-Terraform configuration for deploying AgentBox to AWS.
+Terraform configuration for deploying ClawBox to AWS.
 
 ## Architecture
 
@@ -80,10 +80,10 @@ Note the outputs:
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
 
 # Build image
-docker build -t agentbox .
+docker build -t clawbox .
 
 # Tag and push
-docker tag agentbox:latest <ecr_repository_url>:latest
+docker tag clawbox:latest <ecr_repository_url>:latest
 docker push <ecr_repository_url>:latest
 ```
 
@@ -97,7 +97,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 ### 7. Force ECS Service Update
 
 ```bash
-aws ecs update-service --cluster agentbox-prod-cluster --service agentbox-prod --force-new-deployment
+aws ecs update-service --cluster clawbox-prod-cluster --service clawbox-prod --force-new-deployment
 ```
 
 ## Accessing the API
@@ -111,8 +111,8 @@ curl http://<alb-dns-name>/health
 
 Configure the CLI to use the cloud API:
 ```bash
-agentbox config --api-url http://<alb-dns-name>
-agentbox init
+clawbox config --api-url http://<alb-dns-name>
+clawbox init
 ```
 
 ## Costs
