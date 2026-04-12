@@ -42,10 +42,6 @@ agentbox embed <file_id>                      # Generate embeddings
 agentbox embed --failed                       # Retry failed embeddings
 agentbox delete <file_id>                     # Delete a file
 agentbox status                               # Check server + token health
-agentbox memory save what <name> "content"    # Save a memory
-agentbox memory search "query"                # Search memories semantically
-agentbox memory recall "query"                # Search + display full match
-agentbox memory list                          # List all memories
 ```
 
 ## Workflow
