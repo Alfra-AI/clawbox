@@ -29,6 +29,13 @@ clawbox config --api-url http://localhost:8000
 clawbox init
 ```
 
+If you want PostgreSQL exposed on `localhost:5432` for host-side tools such as
+`psql` or Alembic, start the database with the dev override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+```
+
 ### What's included
 
 - PostgreSQL with pgvector
@@ -40,6 +47,8 @@ clawbox init
 - `docker compose up` does not run Alembic automatically in the current setup.
 - Re-run `docker compose exec app alembic upgrade head` after pulling schema changes.
 - Add `GOOGLE_API_KEY` to `.env` if you want semantic search and embeddings.
+- Use `docker-compose.dev.yml` only when you need PostgreSQL reachable at
+  `localhost:5432` from the host.
 
 ---
 

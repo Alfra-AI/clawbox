@@ -113,38 +113,6 @@ class BatchEmbedRequest(BaseModel):
         return self
 
 
-async def _reembed_file(
-    db: Session,
-    file_record: FileModel,
-    content: bytes,
-) -> EmbedFileResult:
-    """Generate embeddings for one file and return the batch result."""
-    db.query(FileEmbedding).filter(FileEmbedding.file_id == file_record.id).delete()
-    file_record.embedding_status = "pending"
-    db.commit()
-
-    try:
-        success = await generate_and_store_embeddings(
-            db, file_record, content, file_record.content_type
-        )
-        file_record.embedding_status = "completed" if success else "failed"
-        error = None if success else "embedding_generation_failed"
-    except Exception:
-        db.rollback()
-        file_record.embedding_status = "failed"
-        error = "embedding_generation_failed"
-
-    db.add(file_record)
-    db.commit()
-
-    return EmbedFileResult(
-        requested_id=str(file_record.id),
-        id=str(file_record.id),
-        filename=file_record.filename,
-        embedding_status=file_record.embedding_status,
-        error=error,
-    )
-
 
 def _parse_path(path: str, default_filename: str) -> tuple[str, str]:
     """Parse a virtual path into (folder, filename).
@@ -403,12 +371,23 @@ async def batch_embed_files(
             )
             continue
 
-        result = await _reembed_file(db, file_record, content)
-        if result.embedding_status == "completed":
-            succeeded += 1
-        else:
-            failed += 1
-        results.append(result)
+        # Clear old embeddings, mark pending, and kick off background task
+        db.query(FileEmbedding).filter(FileEmbedding.file_id == file_record.id).delete()
+        file_record.embedding_status = "pending"
+        db.add(file_record)
+        db.commit()
+
+        asyncio.create_task(
+            _embed_in_background(file_record.id, content, file_record.content_type)
+        )
+        results.append(
+            EmbedFileResult(
+                requested_id=str(file_record.id),
+                id=str(file_record.id),
+                filename=file_record.filename,
+                embedding_status="pending",
+            )
+        )
 
     return BatchEmbedResponse(
         processed=len(results),

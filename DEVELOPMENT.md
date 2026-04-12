@@ -4,8 +4,11 @@
 
 1. Start PostgreSQL with pgvector:
 ```bash
-docker compose up -d db
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
 ```
+
+The dev override publishes PostgreSQL on `localhost:5432` for local tools such
+as Alembic and `psql`. Override the host port with `POSTGRES_PORT` if needed.
 
 Wait until the container is healthy before starting the app.
 

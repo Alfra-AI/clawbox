@@ -322,35 +322,40 @@ def embed(
     payload = {"failed_only": True} if failed else {"file_ids": requested_file_ids}
     response = api_request("POST", "/files/embed", token=token, json=payload)
 
-    if response.status_code == 200:
-        data = response.json()
-        if data["processed"] == 0:
-            console.print("No files need embedding.")
-            return
-
-        console.print(
-            f"Processed {data['processed']} file(s): "
-            f"{data['succeeded']} succeeded, {data['failed']} failed"
-        )
-        for result in data["results"]:
-            label = result.get("filename") or result.get("requested_id") or result.get("id", "[unknown]")
-            if result["embedding_status"] == "completed":
-                console.print(f"  [green]✓[/green] {label}")
-            else:
-                error_detail = result.get("error")
-                detail = f" ({error_detail})" if error_detail else ""
-                console.print(f"  [red]✗[/red] {label}{detail}")
-
-        if data["failed"] > 0:
-            raise typer.Exit(1)
-    elif response.status_code == 404:
+    if response.status_code == 404:
         console.print("[red]File not found[/red]")
         raise typer.Exit(1)
     elif response.status_code == 503:
-        console.print("[yellow]Embeddings require OpenAI API key on the server[/yellow]")
+        console.print("[yellow]Embeddings require Google API key on the server[/yellow]")
         raise typer.Exit(1)
-    else:
+    elif response.status_code != 200:
         console.print(f"[red]Embed failed: {response.text}[/red]")
+        raise typer.Exit(1)
+
+    data = response.json()
+    if data["processed"] == 0:
+        console.print("No files need embedding.")
+        return
+
+    has_errors = False
+    for result in data["results"]:
+        label = result.get("filename") or result.get("requested_id") or result.get("id", "[unknown]")
+        if result["embedding_status"] == "pending":
+            console.print(f"  [yellow]⏳[/yellow] {label}")
+        else:
+            has_errors = True
+            error_detail = result.get("error")
+            detail = f" ({error_detail})" if error_detail else ""
+            console.print(f"  [red]✗[/red] {label}{detail}")
+
+    pending_count = sum(1 for r in data["results"] if r["embedding_status"] == "pending")
+    if pending_count:
+        console.print(
+            f"Embedding {pending_count} file(s) in background. "
+            "Use [cyan]clawbox list[/cyan] to check status."
+        )
+
+    if has_errors:
         raise typer.Exit(1)
 
 
