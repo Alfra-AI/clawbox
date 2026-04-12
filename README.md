@@ -44,8 +44,8 @@ ClawBox is an open-source file storage platform built for AI agents. Upload file
 ### Option 1: Docker
 
 ```bash
-git clone https://github.com/Alfra-AI/agentbox.git
-cd agentbox
+git clone https://github.com/Alfra-AI/clawbox.git
+cd clawbox
 cp .env.example .env       # Edit to add your Google API key for search
 docker compose up
 ```
@@ -60,12 +60,12 @@ No setup needed &mdash; just visit **[clawbox.ink](https://clawbox.ink)**.
 
 ```bash
 pip install .
-agentbox init                    # Get a token
-agentbox upload report.pdf       # Upload
-agentbox search "quarterly revenue"  # Semantic search
+clawbox init                    # Get a token
+clawbox upload report.pdf       # Upload
+clawbox search "quarterly revenue"  # Semantic search
 ```
 
-If you want to connect ClawBox to a coding or task agent, see [`AgentBoxSkill/SKILL.md`](AgentBoxSkill/SKILL.md).
+If you want to connect ClawBox to a coding or task agent, see [`ClawBoxSkill/SKILL.md`](ClawBoxSkill/SKILL.md).
 
 ---
 
@@ -199,7 +199,7 @@ mvp/
 ├── storage.py        # Storage backend (local/S3)
 ├── embeddings.py     # Gemini embeddings + text extraction
 ├── database.py       # Database connection
-├── cli.py            # CLI tool (agentbox command)
+├── cli.py            # CLI tool (clawbox command)
 ├── routes/
 │   ├── tokens.py     # Token management + settings
 │   ├── files.py      # File CRUD + sharing + folders
