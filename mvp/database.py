@@ -40,6 +40,7 @@ def ensure_pgvector_extension() -> None:
             "Database connection failed during startup. "
             f"Could not connect to PostgreSQL at {host}:{port}/{database}. "
             "Set DATABASE_URL to a reachable Postgres instance or start the local "
-            "development database with `docker-compose up -d`, then run "
+            "development database with `docker compose -f docker-compose.yml -f "
+            "docker-compose.dev.yml up -d db`, then run "
             "`alembic upgrade head`."
         ) from exc
