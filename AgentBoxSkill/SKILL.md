@@ -1,6 +1,6 @@
 ---
 name: agentbox
-version: 1.0.0
+version: 1.1.0
 description: Use the AgentBox CLI to upload, download, organize, search, and share files on ClawBox (clawbox.ink) or a self-hosted AgentBox server. Trigger this skill when users mention agentbox, clawbox, cloud file storage, uploading files to the cloud, semantic file search, file sharing links, organizing files into folders, or managing tokens and storage quotas. Also use when code imports or references the agentbox CLI tool.
 ---
 
