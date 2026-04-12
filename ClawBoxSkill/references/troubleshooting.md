@@ -26,10 +26,30 @@ clawbox config --token <token>
 ## Search unavailable
 
 ```
-Search is not available. OpenAI API key not configured.
+Search is not available. Google API key not configured.
 ```
 
 Search requires a Google API key (Gemini) configured on the server side. This is a server config issue, not a CLI issue. If self-hosting, add `GOOGLE_API_KEY` to your `.env`.
+
+## Local Docker returns Internal Server Error
+
+```
+Failed to list files: Internal Server Error
+```
+
+If you self-hosted with Docker Compose, the app container is up but the database
+schema has not been migrated yet. Run:
+
+```bash
+docker compose exec app alembic upgrade head
+```
+
+Then point the CLI at your local server and get a local token if needed:
+
+```bash
+clawbox config --api-url http://localhost:8000
+clawbox init
+```
 
 ## Upload fails with 413
 

@@ -35,7 +35,7 @@ ClawBox is an open-source file storage platform built for AI agents. Upload file
 | **Virtual Folders** | Organize files with paths like `/docs/reports/q1.pdf`. |
 | **File Sharing** | Generate share links &mdash; anyone with the link can download. |
 | **Google Login** | Sign in with Google for 10 GB storage (1 GB free without login). |
-| **Self-Hostable** | `docker compose up` &mdash; runs on your laptop, office server, or cloud. |
+| **Self-Hostable** | Docker Compose and cloud-friendly deployment options for local or hosted setups. |
 
 ---
 
@@ -47,10 +47,11 @@ ClawBox is an open-source file storage platform built for AI agents. Upload file
 git clone https://github.com/Alfra-AI/clawbox.git
 cd clawbox
 cp .env.example .env       # Edit to add your Google API key for search
-docker compose up
+docker compose up -d
+docker compose exec app alembic upgrade head
 ```
 
-ClawBox is running at **http://localhost:8000**.
+ClawBox is then available at **http://localhost:8000**.
 
 ### Option 2: Use the hosted version
 
@@ -121,13 +122,15 @@ All endpoints (except public ones) require `Authorization: Bearer <token>`.
 ### Single Server
 
 ```bash
-docker compose up
+docker compose up -d
+docker compose exec app alembic upgrade head
 ```
 
 ### With MinIO (S3-Compatible Storage)
 
 ```bash
-docker compose -f docker-compose.cluster.yml up
+docker compose -f docker-compose.cluster.yml up -d
+docker compose -f docker-compose.cluster.yml exec app alembic upgrade head
 ```
 
 ### Any Cloud
@@ -142,7 +145,7 @@ ClawBox works with any S3-compatible storage. Set `S3_ENDPOINT_URL`:
 | DigitalOcean Spaces | `https://{region}.digitaloceanspaces.com` |
 | Cloudflare R2 | `https://{account_id}.r2.cloudflarestorage.com` |
 
-See [Self-Hosting Guide](docs/self-hosting.md) for details.
+See [Self-Hosting Guide](docs/self-hosting.md) for the full local, cluster, and cloud setup flow.
 
 ---
 

@@ -4,22 +4,22 @@
 
 1. Start PostgreSQL with pgvector:
 ```bash
-docker-compose up -d
+docker compose up -d db
 ```
 
 Wait until the container is healthy before starting the app.
 
 2. Create a virtual environment and install dependencies:
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e .
 ```
 
 3. Configure environment variables:
 ```bash
 cp .env.example .env
-# Edit .env and add your OpenAI API key
+# Edit .env and add your Google API key
 ```
 
 4. Apply database migrations:
