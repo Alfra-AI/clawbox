@@ -13,13 +13,13 @@ variable "environment" {
 variable "app_name" {
   description = "Application name"
   type        = string
-  default     = "agentbox"
+  default     = "clawbox"
 }
 
 variable "db_username" {
   description = "Database username"
   type        = string
-  default     = "agentbox"
+  default     = "clawbox"
 }
 
 variable "db_password" {

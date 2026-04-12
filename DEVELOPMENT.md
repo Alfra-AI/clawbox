@@ -36,7 +36,7 @@ The API will be available at `http://localhost:8000`.
 
 ## Database Migrations
 
-AgentBox uses Alembic for schema changes. `Base.metadata.create_all()` is not used
+ClawBox uses Alembic for schema changes. `Base.metadata.create_all()` is not used
 to evolve existing databases.
 
 Apply migrations:

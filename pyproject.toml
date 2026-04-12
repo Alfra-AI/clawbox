@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentbox"
+name = "clawbox"
 version = "0.0.1"
 description = "A minimal cloud file system for agents with semantic search capabilities"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "AgentBox Team"}
+    {name = "ClawBox Team"}
 ]
 dependencies = [
     "alembic>=1.14.0",
@@ -39,7 +39,7 @@ dependencies = [
 ]
 
 [project.scripts]
-agentbox = "mvp.cli:app"
+clawbox = "mvp.cli:app"
 
 [project.optional-dependencies]
 dev = [

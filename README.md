@@ -41,7 +41,7 @@ ClawBox is an open-source file storage platform built for AI agents. Upload file
 
 ## Quick Start
 
-### Option 1: Docker (recommended)
+### Option 1: Docker
 
 ```bash
 git clone https://github.com/Alfra-AI/agentbox.git
@@ -64,6 +64,8 @@ agentbox init                    # Get a token
 agentbox upload report.pdf       # Upload
 agentbox search "quarterly revenue"  # Semantic search
 ```
+
+If you want to connect ClawBox to a coding or task agent, see [`AgentBoxSkill/SKILL.md`](AgentBoxSkill/SKILL.md).
 
 ---
 
@@ -212,15 +214,6 @@ mvp/
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a PR.
-
-```bash
-git clone https://github.com/Alfra-AI/agentbox.git
-cd agentbox
-python -m venv venv && source venv/bin/activate
-pip install -e ".[dev]"
-docker compose up -d  # Start PostgreSQL
-python -m mvp.main    # Start dev server
-```
 
 ---
 

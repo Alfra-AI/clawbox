@@ -1,4 +1,4 @@
-"""Configuration settings for AgentBox."""
+"""Configuration settings for ClawBox."""
 
 from pathlib import Path
 from pydantic_settings import BaseSettings
@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # Database
-    database_url: str = "postgresql://agentbox:agentbox@localhost:5432/agentbox"
+    database_url: str = "postgresql://clawbox:clawbox@localhost:5432/clawbox"
 
     # Storage
     storage_backend: str = "local"  # "local" or "s3"

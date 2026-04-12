@@ -19,9 +19,9 @@ RUN pip install --no-cache-dir .
 
 # Create data directory and non-root user
 RUN mkdir -p /app/data && \
-    useradd -m -u 1000 agentbox && \
-    chown -R agentbox:agentbox /app
-USER agentbox
+    useradd -m -u 1000 clawbox && \
+    chown -R clawbox:clawbox /app
+USER clawbox
 
 # Expose port
 EXPOSE 8000

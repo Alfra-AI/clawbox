@@ -173,7 +173,7 @@ resource "aws_db_instance" "main" {
   storage_type          = "gp3"
   storage_encrypted     = true
 
-  db_name  = "agentbox"
+  db_name  = "clawbox"
   username = var.db_username
   password = var.db_password
 
@@ -330,7 +330,7 @@ resource "aws_ecs_task_definition" "app" {
     }]
 
     environment = [
-      { name = "DATABASE_URL", value = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.main.endpoint}/agentbox" },
+      { name = "DATABASE_URL", value = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.main.endpoint}/clawbox" },
       { name = "STORAGE_BACKEND", value = "s3" },
       { name = "S3_BUCKET_NAME", value = aws_s3_bucket.files.id },
       { name = "AWS_REGION", value = var.aws_region },
