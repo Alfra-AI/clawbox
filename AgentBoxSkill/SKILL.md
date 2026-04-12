@@ -29,9 +29,10 @@ agentbox init
 
 ```bash
 agentbox init                                 # Get a token from clawbox.ink
+agentbox init --login                         # Sign in with Google (opens browser)
 agentbox init --api-url http://localhost:8000  # Self-hosted server
 agentbox config --show                        # View current config
-agentbox upload <file>                        # Upload a file
+agentbox upload <file>                        # Upload a file (async embedding)
 agentbox upload <file> --path /docs/file.pdf  # Upload into a folder
 agentbox download <file_id>                   # Download by ID
 agentbox list                                 # List all files
@@ -41,6 +42,10 @@ agentbox embed <file_id>                      # Generate embeddings
 agentbox embed --failed                       # Retry failed embeddings
 agentbox delete <file_id>                     # Delete a file
 agentbox status                               # Check server + token health
+agentbox memory save what <name> "content"    # Save a memory
+agentbox memory search "query"                # Search memories semantically
+agentbox memory recall "query"                # Search + display full match
+agentbox memory list                          # List all memories
 ```
 
 ## Workflow
@@ -56,8 +61,9 @@ agentbox status                               # Check server + token health
 
 - Config: `~/.agentbox/config.json`
 - Default server: `https://clawbox.ink`
-- Searchable formats: text, JSON, XML, PDF, Word, Excel, PowerPoint, CSV
-- Storage: 10 MB free (anonymous), 1 GB with Google login
+- Searchable formats: text, JSON, XML, PDF, Word, Excel, PowerPoint, CSV, images, audio, video
+- Storage: 1 GB free (anonymous), 10 GB with Google login
+- Large files: use presigned URLs via API (`POST /files/upload-url`) for direct S3 upload
 - Folders: virtual paths like `/docs/reports/`, created implicitly on upload
 
 For detailed API reference, read `AgentBoxSkill/references/api.md`.

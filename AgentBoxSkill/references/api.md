@@ -22,12 +22,14 @@ Authorization: Bearer <token-uuid>
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/files/upload` | Yes | Upload file. Form fields: `file` (required), `path` (optional) |
+| POST | `/files/upload` | Yes | Upload file. Form fields: `file` (required), `path` (optional). Embeddings run in background. |
+| POST | `/files/upload-url` | Yes | Get presigned S3 URL for direct upload (large files). Body: `{"filename", "size_bytes", "path?"}` |
+| POST | `/files/confirm` | Yes | Confirm presigned upload completed. Body: `{"file_id"}` |
 | GET | `/files` | Yes | List files. Query params: `folder`, `recursive` |
-| GET | `/files/{id}` | Yes | Download file |
+| GET | `/files/{id}` | Yes | Download file. Add `?direct=true` for presigned download URL (S3 only). |
 | PATCH | `/files/{id}` | Yes | Move/rename file. Body: `{"path": "/new/path.txt"}` |
 | DELETE | `/files/{id}` | Yes | Delete file |
-| POST | `/files/embed` | Yes | Batch embed. Body: `{"file_ids": [...]}` or `{"failed_only": true}` |
+| POST | `/files/embed` | Yes | Batch embed. Body: `{"file_ids": [...]}`, `{"failed_only": true}`, or `{"pending_only": true}` |
 
 ### Search
 
