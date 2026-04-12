@@ -1,6 +1,9 @@
 """AgentBox CLI - Command line interface for AgentBox API."""
 
 import json
+import math
+import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -150,14 +153,81 @@ def config(
         console.print(f"Token: {cfg.get('token', '[not set]')}")
 
 
+MULTIPART_THRESHOLD = 5 * 1024 * 1024  # 5 MB
+CHUNK_SIZE = 10 * 1024 * 1024  # 10 MB per part
+
+
 @app.command()
 def upload(
     file_path: Path = typer.Argument(..., help="File to upload", exists=True),
     path: Optional[str] = typer.Option(None, "--path", "-p", help="Virtual path (e.g., /docs/readme.md)"),
+    sync: bool = typer.Option(False, "--sync", "-s", help="Force synchronous upload"),
 ):
-    """Upload a file. Use --path to organize into folders."""
+    """Upload a file. Large files (>5 MB) upload in background automatically."""
     token = require_token()
+    size = file_path.stat().st_size
 
+    # Small files or --sync: use existing synchronous upload
+    if size < MULTIPART_THRESHOLD or sync:
+        _upload_sync(file_path, path, token)
+        return
+
+    # Large files: try multipart background upload
+    num_parts = math.ceil(size / CHUNK_SIZE)
+    response = api_request(
+        "POST", "/files/upload-multipart", token=token,
+        json={
+            "filename": file_path.name,
+            "size_bytes": size,
+            "num_parts": num_parts,
+            "path": path,
+        },
+    )
+
+    if response.status_code == 400:
+        # Server doesn't support multipart (local storage) — fall back to sync
+        _upload_sync(file_path, path, token)
+        return
+
+    if response.status_code != 200:
+        console.print(f"[red]Upload failed: {response.text}[/red]")
+        raise typer.Exit(1)
+
+    data = response.json()
+    file_id = data["file_id"]
+
+    # Save transfer state
+    from mvp.transfers import create_transfer, _log_path
+    create_transfer(
+        file_id=file_id,
+        direction="upload",
+        file_path=str(file_path.resolve()),
+        filename=file_path.name,
+        size_bytes=size,
+        upload_id=data["upload_id"],
+        part_urls=data["part_urls"],
+        virtual_path=path,
+        total_parts=num_parts,
+    )
+
+    # Fork background worker
+    log_file = _log_path(file_id)
+    log_fd = open(log_file, "w")
+    subprocess.Popen(
+        [sys.executable, "-m", "mvp.cli", "_worker", "upload", file_id],
+        start_new_session=True,
+        stdout=log_fd,
+        stderr=log_fd,
+        stdin=subprocess.DEVNULL,
+    )
+
+    console.print(f"[green]Uploading in background...[/green]")
+    console.print(f"File ID: [cyan]{file_id}[/cyan]")
+    console.print(f"Check progress: [dim]agentbox status {file_id}[/dim]")
+
+
+def _upload_sync(file_path: Path, path: Optional[str], token: str):
+    """Synchronous upload for small files or local storage."""
     with open(file_path, "rb") as f:
         files = {"file": (file_path.name, f)}
         data = {"path": path} if path else {}
@@ -173,12 +243,7 @@ def upload(
         if embedding_status == "completed":
             console.print("[green]Indexed for search[/green]")
         elif embedding_status == "pending":
-            console.print("[yellow]Indexing pending[/yellow]")
-        elif embedding_status == "failed":
-            console.print(
-                "[yellow]Embedding failed — file stored but not searchable. "
-                "Use 'agentbox embed --failed' to retry.[/yellow]"
-            )
+            console.print("[yellow]Indexing in background[/yellow]")
     else:
         console.print(f"[red]Upload failed: {response.text}[/red]")
         raise typer.Exit(1)
@@ -188,25 +253,70 @@ def upload(
 def download(
     file_id: str = typer.Argument(..., help="File ID to download"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output path"),
+    sync: bool = typer.Option(False, "--sync", "-s", help="Force synchronous download"),
 ):
-    """Download a file."""
+    """Download a file. Large files download in background via presigned URL."""
     token = require_token()
 
-    response = api_request("GET", f"/files/{file_id}", token=token)
-
-    if response.status_code == 200:
-        # Get filename from Content-Disposition header
-        content_disp = response.headers.get("content-disposition", "")
-        filename = file_id
-        if "filename=" in content_disp:
-            filename = content_disp.split("filename=")[1].strip('"')
-
-        output_path = output or Path(filename)
-        output_path.write_bytes(response.content)
-        console.print(f"[green]Downloaded to: {output_path}[/green]")
-    elif response.status_code == 404:
+    # Get file info first to check size and get filename
+    info_response = api_request("GET", f"/files/{file_id}/info", token=token)
+    if info_response.status_code == 404:
         console.print("[red]File not found[/red]")
         raise typer.Exit(1)
+    elif info_response.status_code != 200:
+        console.print(f"[red]Failed: {info_response.text}[/red]")
+        raise typer.Exit(1)
+
+    file_info = info_response.json()
+    filename = file_info["filename"]
+    size = file_info["size_bytes"]
+    output_path = output or Path(filename)
+
+    # Small files or --sync: download directly
+    if size < MULTIPART_THRESHOLD or sync:
+        response = api_request("GET", f"/files/{file_id}", token=token)
+        if response.status_code == 200:
+            output_path.write_bytes(response.content)
+            console.print(f"[green]Downloaded to: {output_path}[/green]")
+        else:
+            console.print(f"[red]Download failed: {response.text}[/red]")
+            raise typer.Exit(1)
+        return
+
+    # Large files: try presigned URL + background download
+    direct_response = api_request("GET", f"/files/{file_id}?direct=true", token=token)
+    if direct_response.status_code == 200:
+        data = direct_response.json()
+        if "download_url" in data:
+            from mvp.transfers import create_transfer, _log_path
+            create_transfer(
+                file_id=file_id,
+                direction="download",
+                file_path=str(output_path.resolve()),
+                filename=filename,
+                size_bytes=size,
+            )
+
+            log_file = _log_path(file_id)
+            log_fd = open(log_file, "w")
+            subprocess.Popen(
+                [sys.executable, "-m", "mvp.cli", "_worker", "download", file_id],
+                start_new_session=True,
+                stdout=log_fd,
+                stderr=log_fd,
+                stdin=subprocess.DEVNULL,
+            )
+
+            console.print(f"[green]Downloading in background...[/green]")
+            console.print(f"Output: [cyan]{output_path}[/cyan]")
+            console.print(f"Check progress: [dim]agentbox status {file_id}[/dim]")
+            return
+
+    # Fallback to sync download
+    response = api_request("GET", f"/files/{file_id}", token=token)
+    if response.status_code == 200:
+        output_path.write_bytes(response.content)
+        console.print(f"[green]Downloaded to: {output_path}[/green]")
     else:
         console.print(f"[red]Download failed: {response.text}[/red]")
         raise typer.Exit(1)
@@ -400,9 +510,78 @@ def search(
 
 
 @app.command()
-def status():
-    """Check API server status and token info."""
-    # Check server health
+def status(
+    file_id: Optional[str] = typer.Argument(None, help="File ID to check transfer status"),
+    transfers: bool = typer.Option(False, "--transfers", "-t", help="List all active transfers"),
+):
+    """Check server status, or check transfer progress for a file."""
+    from mvp.transfers import get_transfer, list_transfers, is_worker_alive
+
+    # Show transfer status for a specific file
+    if file_id:
+        state = get_transfer(file_id)
+        if state:
+            alive = is_worker_alive(state.get("worker_pid"))
+            status_str = state["status"]
+            if status_str in ("uploading", "downloading") and not alive:
+                status_str = "interrupted (worker died)"
+
+            console.print(f"File ID: [cyan]{state['file_id']}[/cyan]")
+            console.print(f"Direction: {state['direction']}")
+            console.print(f"Status: [bold]{status_str}[/bold]")
+            if state.get("total_parts"):
+                pct = (state.get("completed_parts", 0) / state["total_parts"]) * 100
+                console.print(f"Progress: {state.get('completed_parts', 0)}/{state['total_parts']} parts ({pct:.0f}%)")
+            if state.get("bytes_transferred"):
+                console.print(f"Transferred: {formatsize(state['bytes_transferred'])} / {formatsize(state['size_bytes'])}")
+            if state.get("error"):
+                console.print(f"Error: [red]{state['error']}[/red]")
+            if state.get("file_path"):
+                console.print(f"Local path: {state['file_path']}")
+        else:
+            # Check server for file info
+            token = get_token()
+            if token:
+                resp = api_request("GET", f"/files/{file_id}/info", token=token)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    console.print(f"File: [cyan]{data['folder']}{data['filename']}[/cyan]")
+                    console.print(f"Status: {data['embedding_status']}")
+                    console.print(f"Size: {formatsize(data['size_bytes'])}")
+                else:
+                    console.print("[red]File not found[/red]")
+            else:
+                console.print("[red]No transfer found and no token configured[/red]")
+        return
+
+    # List all transfers
+    if transfers:
+        active = list_transfers()
+        if not active:
+            console.print("No active transfers.")
+            return
+        table = Table(title="Transfers")
+        table.add_column("ID", style="cyan", no_wrap=True)
+        table.add_column("Direction")
+        table.add_column("File")
+        table.add_column("Status")
+        table.add_column("Progress")
+
+        for t in active[:20]:
+            alive = is_worker_alive(t.get("worker_pid"))
+            s = t["status"]
+            if s in ("uploading", "downloading") and not alive:
+                s = "interrupted"
+            pct = ""
+            if t.get("total_parts"):
+                pct = f"{t.get('completed_parts', 0)}/{t['total_parts']}"
+            elif t.get("bytes_transferred"):
+                pct = formatsize(t["bytes_transferred"])
+            table.add_row(t["file_id"][:12], t["direction"], t["filename"], s, pct)
+        console.print(table)
+        return
+
+    # Default: server health + token check
     try:
         response = api_request("GET", "/health")
         if response.status_code == 200:
@@ -413,7 +592,6 @@ def status():
     except typer.Exit:
         return
 
-    # Check token
     token = get_token()
     if token:
         response = api_request("GET", "/files", token=token)
@@ -423,6 +601,142 @@ def status():
             console.print(f"[yellow]Token: invalid or expired[/yellow]")
     else:
         console.print("[yellow]Token: not configured[/yellow]")
+
+
+def formatsize(b):
+    if b < 1024: return f"{b} B"
+    if b < 1024**2: return f"{b/1024:.1f} KB"
+    if b < 1024**3: return f"{b/1024**2:.1f} MB"
+    return f"{b/1024**3:.1f} GB"
+
+
+# --- Background worker (hidden command, called by subprocess) ---
+
+@app.command(hidden=True)
+def _worker(
+    action: str = typer.Argument(..., help="upload or download"),
+    transfer_id: str = typer.Argument(..., help="File/transfer ID"),
+):
+    """Background worker for chunked upload/download. Not for direct use."""
+    from mvp.transfers import get_transfer, update_transfer
+
+    state = get_transfer(transfer_id)
+    if state is None:
+        print(f"Transfer {transfer_id} not found")
+        raise typer.Exit(1)
+
+    update_transfer(transfer_id, worker_pid=os.getpid())
+
+    if action == "upload":
+        _worker_upload(transfer_id, state)
+    elif action == "download":
+        _worker_download(transfer_id, state)
+    else:
+        print(f"Unknown action: {action}")
+        raise typer.Exit(1)
+
+
+def _worker_upload(transfer_id: str, state: dict):
+    """Background upload worker — reads file in chunks, PUTs to presigned URLs."""
+    from mvp.transfers import update_transfer
+
+    token = require_token()
+    file_path = state["file_path"]
+    part_urls = state.get("part_urls", [])
+
+    completed_etags = []
+    try:
+        with open(file_path, "rb") as f:
+            for part in part_urls:
+                chunk = f.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                resp = httpx.put(
+                    part["upload_url"],
+                    content=chunk,
+                    timeout=600,
+                )
+                resp.raise_for_status()
+                etag = resp.headers.get("etag", "")
+                completed_etags.append({
+                    "part_number": part["part_number"],
+                    "etag": etag,
+                })
+                update_transfer(
+                    transfer_id,
+                    bytes_transferred=f.tell(),
+                    completed_parts=len(completed_etags),
+                    completed_etags=completed_etags,
+                )
+                print(f"Part {part['part_number']}/{len(part_urls)} uploaded")
+
+        # Complete multipart upload on server
+        update_transfer(transfer_id, status="confirming")
+        response = api_request(
+            "POST", "/files/complete-multipart", token=token,
+            json={
+                "file_id": transfer_id,
+                "upload_id": state["upload_id"],
+                "parts": completed_etags,
+            },
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            update_transfer(transfer_id, status="ready", embedding_status=data.get("embedding_status"))
+            print(f"Upload complete: {transfer_id}")
+        else:
+            update_transfer(transfer_id, status="failed", error=f"Complete failed: {response.status_code}")
+            print(f"Complete failed: {response.text}")
+
+    except Exception as e:
+        update_transfer(transfer_id, status="failed", error=str(e))
+        print(f"Upload failed: {e}")
+
+
+def _worker_download(transfer_id: str, state: dict):
+    """Background download worker — streams file from presigned URL."""
+    from mvp.transfers import update_transfer
+
+    token = require_token()
+    output_path = state["file_path"]
+
+    try:
+        # Get presigned download URL
+        response = api_request("GET", f"/files/{transfer_id}?direct=true", token=token)
+        if response.status_code != 200:
+            # Fall back to regular download
+            response = api_request("GET", f"/files/{transfer_id}", token=token)
+            if response.status_code == 200:
+                Path(output_path).write_bytes(response.content)
+                update_transfer(transfer_id, status="downloaded", bytes_transferred=len(response.content))
+                print(f"Download complete: {output_path}")
+            else:
+                update_transfer(transfer_id, status="failed", error=f"Download failed: {response.status_code}")
+            return
+
+        data = response.json()
+        download_url = data.get("download_url")
+        if not download_url:
+            update_transfer(transfer_id, status="failed", error="No download URL returned")
+            return
+
+        # Stream download in chunks
+        with httpx.stream("GET", download_url, timeout=600) as stream:
+            stream.raise_for_status()
+            bytes_downloaded = 0
+            with open(output_path, "wb") as f:
+                for chunk in stream.iter_bytes(chunk_size=CHUNK_SIZE):
+                    f.write(chunk)
+                    bytes_downloaded += len(chunk)
+                    update_transfer(transfer_id, bytes_transferred=bytes_downloaded)
+
+        update_transfer(transfer_id, status="downloaded")
+        print(f"Download complete: {output_path}")
+
+    except Exception as e:
+        update_transfer(transfer_id, status="failed", error=str(e))
+        print(f"Download failed: {e}")
 
 
 if __name__ == "__main__":

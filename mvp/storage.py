@@ -45,6 +45,18 @@ class StorageBackend(ABC):
         """Generate a presigned URL for direct download. Returns None if not supported."""
         return None
 
+    def generate_presigned_multipart_upload(self, token_id: UUID, file_id: UUID, filename: str, num_parts: int, expires_in: int = 3600) -> dict | None:
+        """Initiate multipart upload and return presigned URLs for each part. Returns None if not supported."""
+        return None
+
+    def complete_multipart_upload(self, storage_path: str, upload_id: str, parts: list) -> bool:
+        """Complete a multipart upload with ETags. Returns True on success."""
+        return False
+
+    def abort_multipart_upload(self, storage_path: str, upload_id: str) -> None:
+        """Abort an in-progress multipart upload."""
+        pass
+
 
 class LocalStorageBackend(StorageBackend):
     """Local filesystem storage backend."""
@@ -184,6 +196,64 @@ class S3StorageBackend(StorageBackend):
             },
             ExpiresIn=expires_in,
         )
+
+    def generate_presigned_multipart_upload(self, token_id: UUID, file_id: UUID, filename: str, num_parts: int, expires_in: int = 3600) -> dict | None:
+        """Initiate S3 multipart upload and return presigned URLs for each part."""
+        s3_key = self._get_s3_key(token_id, file_id, filename)
+
+        # Create multipart upload
+        response = self.s3_client.create_multipart_upload(
+            Bucket=self.bucket_name,
+            Key=s3_key,
+        )
+        upload_id = response["UploadId"]
+
+        # Generate presigned URL for each part
+        part_urls = []
+        for i in range(1, num_parts + 1):
+            url = self.s3_client.generate_presigned_url(
+                "upload_part",
+                Params={
+                    "Bucket": self.bucket_name,
+                    "Key": s3_key,
+                    "PartNumber": i,
+                    "UploadId": upload_id,
+                },
+                ExpiresIn=expires_in,
+            )
+            part_urls.append({"part_number": i, "upload_url": url})
+
+        return {
+            "upload_id": upload_id,
+            "storage_path": s3_key,
+            "part_urls": part_urls,
+        }
+
+    def complete_multipart_upload(self, storage_path: str, upload_id: str, parts: list) -> bool:
+        """Complete an S3 multipart upload with ETags."""
+        self.s3_client.complete_multipart_upload(
+            Bucket=self.bucket_name,
+            Key=storage_path,
+            UploadId=upload_id,
+            MultipartUpload={
+                "Parts": [
+                    {"PartNumber": p["part_number"], "ETag": p["etag"]}
+                    for p in sorted(parts, key=lambda x: x["part_number"])
+                ]
+            },
+        )
+        return True
+
+    def abort_multipart_upload(self, storage_path: str, upload_id: str) -> None:
+        """Abort an S3 multipart upload."""
+        try:
+            self.s3_client.abort_multipart_upload(
+                Bucket=self.bucket_name,
+                Key=storage_path,
+                UploadId=upload_id,
+            )
+        except ClientError:
+            pass
 
 
 def get_storage_backend() -> StorageBackend:

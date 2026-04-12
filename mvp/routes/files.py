@@ -538,6 +538,151 @@ async def confirm_upload(
     )
 
 
+class MultipartUploadRequest(BaseModel):
+    filename: str
+    content_type: str = "application/octet-stream"
+    size_bytes: int
+    num_parts: int
+    path: Optional[str] = None
+
+
+class MultipartPartInfo(BaseModel):
+    part_number: int
+    upload_url: str
+
+
+class MultipartUploadResponse(BaseModel):
+    file_id: str
+    upload_id: str
+    part_urls: List[MultipartPartInfo]
+    expires_in: int
+
+
+@router.post("/upload-multipart", response_model=MultipartUploadResponse)
+def create_multipart_upload(
+    request: MultipartUploadRequest,
+    token: Token = Depends(get_current_token),
+    db: Session = Depends(get_db),
+) -> MultipartUploadResponse:
+    """Initiate a multipart upload. Returns presigned URLs for each part."""
+    if not token.has_storage_available(request.size_bytes):
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Storage quota exceeded.")
+
+    storage = get_storage_backend()
+    default_filename = request.filename
+    folder, filename = _parse_path(request.path or "", default_filename)
+
+    import os
+    ext = os.path.splitext(filename)[-1].lower()
+    content_type = EXTENSION_CONTENT_TYPES.get(ext, request.content_type)
+    embedding_status = "pending" if is_embeddable_content_type(content_type) else "not_applicable"
+
+    file_record = FileModel(
+        token_id=token.id,
+        filename=filename,
+        folder=folder,
+        content_type=content_type,
+        size_bytes=request.size_bytes,
+        storage_path="",
+        embedding_status=embedding_status,
+    )
+    db.add(file_record)
+    db.flush()
+
+    result = storage.generate_presigned_multipart_upload(token.id, file_record.id, filename, request.num_parts)
+    if result is None:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Multipart upload not supported with local storage.")
+
+    file_record.storage_path = result["storage_path"]
+    token.storage_used_bytes += request.size_bytes
+    db.commit()
+
+    return MultipartUploadResponse(
+        file_id=str(file_record.id),
+        upload_id=result["upload_id"],
+        part_urls=[MultipartPartInfo(**p) for p in result["part_urls"]],
+        expires_in=3600,
+    )
+
+
+class CompleteMultipartPart(BaseModel):
+    part_number: int
+    etag: str
+
+
+class CompleteMultipartRequest(BaseModel):
+    file_id: str
+    upload_id: str
+    parts: List[CompleteMultipartPart]
+
+
+@router.post("/complete-multipart", response_model=FileResponse)
+async def complete_multipart_upload(
+    request: CompleteMultipartRequest,
+    token: Token = Depends(get_current_token),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Complete a multipart upload. Triggers background embedding."""
+    file_record = (
+        db.query(FileModel)
+        .filter(FileModel.id == request.file_id, FileModel.token_id == token.id)
+        .first()
+    )
+    if file_record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    storage = get_storage_backend()
+    parts = [{"part_number": p.part_number, "etag": p.etag} for p in request.parts]
+    storage.complete_multipart_upload(file_record.storage_path, request.upload_id, parts)
+
+    # Trigger background embedding
+    if file_record.embedding_status == "pending":
+        content = await storage.load(file_record.storage_path)
+        asyncio.create_task(
+            _embed_in_background(file_record.id, content, file_record.content_type)
+        )
+
+    db.refresh(file_record)
+    return FileResponse(
+        id=str(file_record.id),
+        filename=file_record.filename,
+        folder=file_record.folder,
+        content_type=file_record.content_type,
+        size_bytes=file_record.size_bytes,
+        embedding_status=file_record.embedding_status,
+        created_at=file_record.created_at,
+        updated_at=file_record.updated_at,
+    )
+
+
+@router.get("/{file_id}/info", response_model=FileResponse)
+def get_file_info(
+    file_id: UUID,
+    token: Token = Depends(get_current_token),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Get file metadata without downloading the content."""
+    file_record = (
+        db.query(FileModel)
+        .filter(FileModel.id == file_id, FileModel.token_id == token.id)
+        .first()
+    )
+    if file_record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    return FileResponse(
+        id=str(file_record.id),
+        filename=file_record.filename,
+        folder=file_record.folder,
+        content_type=file_record.content_type,
+        size_bytes=file_record.size_bytes,
+        embedding_status=file_record.embedding_status,
+        created_at=file_record.created_at,
+        updated_at=file_record.updated_at,
+    )
+
+
 @router.get("/{file_id}")
 async def download_file(
     file_id: UUID,
