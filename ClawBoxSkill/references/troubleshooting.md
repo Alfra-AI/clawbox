@@ -7,7 +7,7 @@ Cannot connect to API at https://clawbox.ink
 ```
 
 - Check if the server is running: `clawbox status`
-- For local dev, start the server: `python -m mvp.main`
+- For local dev, start the server: `python -m src.main`
 - Check the configured URL: `clawbox config --show`
 - Change the URL: `clawbox config --api-url http://localhost:8000`
 

@@ -2,7 +2,7 @@
 
 from authlib.integrations.starlette_client import OAuth
 
-from mvp.config import settings
+from src.config import settings
 
 oauth = OAuth()
 

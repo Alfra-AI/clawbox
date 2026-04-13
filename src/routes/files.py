@@ -11,12 +11,12 @@ from fastapi.responses import Response
 from pydantic import BaseModel, model_validator
 from sqlalchemy.orm import Session
 
-from mvp.auth import get_current_token
-from mvp.config import settings
-from mvp.database import get_db
-from mvp.models import File as FileModel, FileEmbedding, SharedLink, Token
-from mvp.storage import get_storage_backend
-from mvp.embeddings import generate_and_store_embeddings
+from src.auth import get_current_token
+from src.config import settings
+from src.database import get_db
+from src.models import File as FileModel, FileEmbedding, SharedLink, Token
+from src.storage import get_storage_backend
+from src.embeddings import generate_and_store_embeddings
 
 router = APIRouter(prefix="/files", tags=["files"])
 logger = logging.getLogger(__name__)
@@ -229,7 +229,7 @@ async def upload_file(
 
 async def _embed_in_background(file_id: UUID, content: bytes, content_type: str):
     """Generate embeddings in a background task."""
-    from mvp.database import SessionLocal
+    from src.database import SessionLocal
 
     db = SessionLocal()
     try:

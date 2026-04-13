@@ -119,7 +119,7 @@ pip install .
 cp .env.example .env
 # Edit .env with your database and API settings
 alembic upgrade head
-python -m mvp.main
+python -m src.main
 ```
 
 ---

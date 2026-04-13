@@ -194,7 +194,7 @@ See [.env.example](.env.example) for all options.
 ## Project Structure
 
 ```
-mvp/
+src/
 ├── main.py           # FastAPI app, routing, middleware
 ├── config.py         # Settings from environment
 ├── models.py         # SQLAlchemy models

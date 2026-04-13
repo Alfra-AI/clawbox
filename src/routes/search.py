@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from mvp.auth import get_current_token
-from mvp.config import settings
-from mvp.database import get_db
-from mvp.embeddings import search_embeddings
-from mvp.models import Token
+from src.auth import get_current_token
+from src.config import settings
+from src.database import get_db
+from src.embeddings import search_embeddings
+from src.models import Token
 
 router = APIRouter(tags=["search"])
 

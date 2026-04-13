@@ -11,9 +11,9 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from mvp.database import get_db
-from mvp.models import DropFile, DropSession
-from mvp.storage import get_storage_backend
+from src.database import get_db
+from src.models import DropFile, DropSession
+from src.storage import get_storage_backend
 
 router = APIRouter(prefix="/drop", tags=["drop"])
 

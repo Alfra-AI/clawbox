@@ -11,7 +11,7 @@ from uuid import UUID
 import boto3
 from botocore.exceptions import ClientError
 
-from mvp.config import settings
+from src.config import settings
 
 
 class StorageBackend(ABC):

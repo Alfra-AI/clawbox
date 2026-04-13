@@ -8,8 +8,8 @@ from google import genai
 from google.genai import types
 from sqlalchemy.orm import Session
 
-from mvp.config import settings
-from mvp.models import File, FileEmbedding
+from src.config import settings
+from src.models import File, FileEmbedding
 
 logger = logging.getLogger(__name__)
 
@@ -378,7 +378,7 @@ def search_embeddings(db: Session, token_id: str, query: str, limit: int = 10) -
     query_embedding = generate_embedding(query)
 
     # Search using pgvector cosine distance
-    from mvp.models import FileEmbedding, File
+    from src.models import FileEmbedding, File
 
     # Query with vector similarity
     results = (
