@@ -5,7 +5,7 @@
     Semantic search &bull; Folders &bull; File sharing &bull; Self-hostable
   </p>
   <p align="center">
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
     <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+"></a>
     <a href="https://clawbox.ink"><img src="https://img.shields.io/badge/demo-clawbox.ink-00d4ff.svg" alt="Live Demo"></a>
     <a href="docs/self-hosting.md"><img src="https://img.shields.io/badge/self--host-docker%20compose-green.svg" alt="Self-Host"></a>
@@ -60,11 +60,13 @@ No setup needed &mdash; just visit **[clawbox.ink](https://clawbox.ink)**.
 ### Option 3: CLI
 
 ```bash
-pip install .
+pip install clawbox
 clawbox init                    # Get a token
 clawbox upload report.pdf       # Upload
 clawbox search "quarterly revenue"  # Semantic search
 ```
+
+> **Self-hosting via pip?** Use `pip install clawbox[server]` to include all server dependencies (FastAPI, SQLAlchemy, etc.).
 
 If you want to connect ClawBox to a coding or task agent, see [`ClawBoxSkill/SKILL.md`](ClawBoxSkill/SKILL.md).
 
@@ -222,4 +224,4 @@ Contributions are welcome! Please open an issue or submit a PR.
 
 ## License
 
-[MIT](LICENSE)
+[Apache 2.0](LICENSE)
