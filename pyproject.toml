@@ -39,7 +39,7 @@ dependencies = [
 ]
 
 [project.scripts]
-clawbox = "mvp.cli:app"
+clawbox = "src.cli:app"
 
 [project.optional-dependencies]
 dev = [
@@ -50,4 +50,4 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["mvp*"]
+include = ["src*"]

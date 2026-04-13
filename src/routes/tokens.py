@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from mvp.database import get_db
-from mvp.models import Token
+from src.database import get_db
+from src.models import Token
 
 router = APIRouter()
 

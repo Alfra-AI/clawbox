@@ -8,8 +8,8 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, T
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from mvp.config import settings
-from mvp.database import Base
+from src.config import settings
+from src.database import Base
 
 
 class User(Base):

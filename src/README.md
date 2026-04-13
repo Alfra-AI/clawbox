@@ -68,7 +68,7 @@ cp .env.example .env
 ### 4. Run the Server
 
 ```bash
-python -m mvp.main
+python -m src.main
 ```
 
 Server runs at `http://localhost:8000`

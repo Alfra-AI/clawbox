@@ -32,7 +32,7 @@ alembic upgrade head
 
 5. Run the server:
 ```bash
-python -m mvp.main
+python -m src.main
 ```
 
 The API will be available at `http://localhost:8000`.

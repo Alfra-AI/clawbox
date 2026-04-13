@@ -12,13 +12,13 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
-from mvp import __version__
-from mvp.config import settings
-from mvp.database import ensure_pgvector_extension, get_db
-from mvp.models import SharedLink, File as FileModel
-from mvp.oauth import register_google
-from mvp.routes import drops, files, oauth, search, tokens
-from mvp.storage import get_storage_backend
+from src import __version__
+from src.config import settings
+from src.database import ensure_pgvector_extension, get_db
+from src.models import SharedLink, File as FileModel
+from src.oauth import register_google
+from src.routes import drops, files, oauth, search, tokens
+from src.storage import get_storage_backend
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -134,10 +134,10 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    from mvp.config import settings
+    from src.config import settings
 
     uvicorn.run(
-        "mvp.main:app",
+        "src.main:app",
         host=settings.host,
         port=settings.port,
         reload=True,

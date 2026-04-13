@@ -5,11 +5,11 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
-from mvp.auth import get_current_token
-from mvp.config import settings
-from mvp.database import get_db
-from mvp.models import Token, User
-from mvp.oauth import oauth
+from src.auth import get_current_token
+from src.config import settings
+from src.database import get_db
+from src.models import Token, User
+from src.oauth import oauth
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

@@ -75,7 +75,7 @@ def api_request(
         return response
     except httpx.ConnectError:
         console.print(f"[red]Cannot connect to API at {get_api_url()}[/red]")
-        console.print("For local dev: python -m mvp.main")
+        console.print("For local dev: python -m src.main")
         raise typer.Exit(1)
 
 
