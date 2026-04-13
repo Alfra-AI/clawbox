@@ -4,15 +4,26 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "clawbox"
-version = "0.0.1"
+version = "1.0.0"
 description = "A minimal cloud file system for agents with semantic search capabilities"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 authors = [
-    {name = "ClawBox Team"}
+    {name = "Dayuan Tang"},
+    {name = "Xinhao Jiang"}
 ]
 dependencies = [
+    "typer>=0.9.0",
+    "httpx>=0.25.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+clawbox = "src.cli:app"
+
+[project.optional-dependencies]
+server = [
     "alembic>=1.14.0",
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
@@ -25,9 +36,6 @@ dependencies = [
     "pydantic-settings>=2.1.0",
     "python-jose[cryptography]>=3.3.0",
     "aiofiles>=23.2.1",
-    "typer>=0.9.0",
-    "httpx>=0.25.0",
-    "rich>=13.0.0",
     "boto3>=1.34.0",
     "pdfplumber>=0.10.0",
     "python-docx>=1.1.0",
@@ -37,11 +45,6 @@ dependencies = [
     "python-pptx>=1.0.0",
     "google-genai>=1.0.0",
 ]
-
-[project.scripts]
-clawbox = "src.cli:app"
-
-[project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
