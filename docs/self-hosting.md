@@ -44,7 +44,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
 
 ### Notes
 
-- `docker compose up` does not run Alembic automatically in the current setup.
+- `docker compose up` does not run Alembic automatically by default in the current setup.
+- If you want the app container to run migrations on boot, set `AUTO_MIGRATE_ON_STARTUP=true`. Use this carefully in single-app deployments; for multi-replica setups, a dedicated migration step is still safer.
 - Re-run `docker compose exec app alembic upgrade head` after pulling schema changes.
 - Add `GOOGLE_API_KEY` to `.env` if you want semantic search and embeddings.
 - Use `docker-compose.dev.yml` only when you need PostgreSQL reachable at
