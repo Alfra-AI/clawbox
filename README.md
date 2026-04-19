@@ -68,7 +68,7 @@ clawbox search "quarterly revenue"  # Semantic search
 
 > **Self-hosting via pip?** Use `pip install clawbox[server]` to include all server dependencies (FastAPI, SQLAlchemy, etc.).
 
-If you want to connect ClawBox to a coding or task agent, see [`ClawBoxSkill/SKILL.md`](ClawBoxSkill/SKILL.md).
+If you want to connect ClawBox to a coding or task agent, see [`skills/clawbox/SKILL.md`](skills/clawbox/SKILL.md).
 
 ---
 

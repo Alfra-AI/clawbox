@@ -13,7 +13,7 @@ ClawBox — a cloud file system for agents with token-based auth, semantic searc
 If the CLI is not installed, run the setup script:
 
 ```bash
-bash ClawBoxSkill/scripts/setup.sh
+bash scripts/setup.sh
 ```
 
 Or manually:
@@ -60,6 +60,6 @@ clawbox status                               # Check server + token health
 - Storage: 10 MB free (anonymous), 1 GB with Google login
 - Folders: virtual paths like `/docs/reports/`, created implicitly on upload
 
-For detailed API reference, read `ClawBoxSkill/references/api.md`.
-For self-hosting and deployment, read `ClawBoxSkill/references/self-hosting.md`.
-For troubleshooting, read `ClawBoxSkill/references/troubleshooting.md`.
+For detailed API reference, read `references/api.md`.
+For self-hosting and deployment, read `references/self-hosting.md`.
+For troubleshooting, read `references/troubleshooting.md`.

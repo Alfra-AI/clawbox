@@ -1,0 +1,19 @@
+{
+  "name": "clawbox",
+  "description": "Cloud file storage CLI with semantic search, folders, sharing, and Claude Code skill",
+  "version": "1.0.0",
+  "author": {
+    "name": "Alfra-AI",
+    "email": "jimmytangda@outlook.com"
+  },
+  "homepage": "https://github.com/Alfra-AI/clawbox",
+  "repository": "https://github.com/Alfra-AI/clawbox",
+  "license": "Apache-2.0",
+  "keywords": [
+    "clawbox",
+    "storage",
+    "cloud",
+    "files",
+    "semantic-search"
+  ]
+}
