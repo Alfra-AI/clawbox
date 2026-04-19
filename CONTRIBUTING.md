@@ -104,7 +104,7 @@ clawbox/
 ├── alembic/                # Database migrations
 │   └── versions/           # Migration files
 ├── docs/                   # Documentation
-├── ClawBoxSkill/           # AI agent skill definition
+├── skills/clawbox/         # AI agent skill definition
 ├── terraform/              # AWS infrastructure (Terraform)
 ├── docker-compose.yml      # Single-server Docker setup
 ├── docker-compose.dev.yml  # Dev override (exposes DB locally)

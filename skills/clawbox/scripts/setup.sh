@@ -13,7 +13,7 @@ fi
 
 # Find the repo root (look for pyproject.toml)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 if [ ! -f "$REPO_ROOT/pyproject.toml" ]; then
     echo "Error: Cannot find pyproject.toml. Run this from the clawbox repo."

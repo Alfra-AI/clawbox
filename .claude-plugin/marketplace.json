@@ -1,0 +1,24 @@
+{
+  "name": "alfra-ai",
+  "metadata": {
+    "description": "Alfra-AI plugins for Claude Code — cloud file storage, agent tooling, and more"
+  },
+  "owner": {
+    "name": "Alfra-AI",
+    "email": "jimmytangda@outlook.com"
+  },
+  "plugins": [
+    {
+      "name": "clawbox",
+      "source": {
+        "source": "github",
+        "repo": "Alfra-AI/clawbox"
+      },
+      "description": "Cloud file storage CLI with Claude Code skill",
+      "version": "1.0.0",
+      "author": {
+        "name": "Alfra-AI"
+      }
+    }
+  ]
+}
