@@ -48,6 +48,18 @@ def process_job(job_id) -> None:
                 ),
             )
             return
+        except Exception as exc:
+            logger.exception("Storage load failed for job %s", job_id)
+            fail_embedding_job(
+                db,
+                job,
+                EmbeddingJobError(
+                    "storage_error",
+                    str(exc) or "Storage load failed",
+                    retryable=True,
+                ),
+            )
+            return
 
         try:
             writes = embed_file_content(file, content, file.content_type)

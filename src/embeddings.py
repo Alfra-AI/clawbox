@@ -9,7 +9,7 @@ from google.genai import types
 
 from src.config import settings
 from src.embedding_jobs import EmbeddingJobError, EmbeddingWrite
-from src.models import File
+from src.models import File, FileEmbedding
 
 logger = logging.getLogger(__name__)
 
@@ -384,9 +384,6 @@ def search_embeddings(db, token_id: str, query: str, limit: int = 10) -> List[di
     """Search for files matching the query using vector similarity."""
     # Generate embedding for query
     query_embedding = embed_query(query)
-
-    # Search using pgvector cosine distance
-    from src.models import FileEmbedding, File
 
     # Query with vector similarity
     results = (

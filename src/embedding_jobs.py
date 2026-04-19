@@ -109,7 +109,7 @@ def enqueue_embedding_job(
             file.embedding_status = FILE_STATUS_QUEUED
             file.embedding_error_code = None
             db.flush()
-            return active_job, False
+            return active_job, True
         return active_job, False
     if active_job:
         return active_job, False
@@ -216,7 +216,6 @@ def fail_embedding_job(db: Session, job: EmbeddingJob, exc: EmbeddingJobError) -
 def get_embeddable_files_for_selector(
     db: Session,
     token_id,
-    file_ids: Sequence | None = None,
     failed_only: bool = False,
     pending_only: bool = False,
 ) -> list[File]:
@@ -231,4 +230,4 @@ def get_embeddable_files_for_selector(
                 File.embedding_status == "pending",
             )
         ).all()
-    return query.filter(File.id.in_(file_ids or [])).all()
+    raise ValueError("get_embeddable_files_for_selector requires failed_only or pending_only")

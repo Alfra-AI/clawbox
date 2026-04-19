@@ -43,7 +43,6 @@ class Settings(BaseSettings):
     embedding_job_max_attempts: int = 3
     embedding_job_lease_seconds: int = 900
     embedding_worker_poll_seconds: int = 2
-    embedding_worker_batch_size: int = 1
 
     # Server
     host: str = "0.0.0.0"
