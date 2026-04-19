@@ -41,19 +41,20 @@ ClawBox is an open-source file storage platform built for AI agents. Upload file
 
 ## Quick Start
 
-### Option 1: Docker
+### Option 1: Agent plugin
 
+#### Claude Code
 ```bash
-git clone https://github.com/Alfra-AI/clawbox.git
-cd clawbox
-cp .env.example .env       # Edit to add your Google API key for search
-docker compose up -d
-docker compose exec app alembic upgrade head
+claude plugin marketplace add Alfra-AI/clawbox && claude plugin install clawbox@alfra-ai
 ```
 
-ClawBox is then available at **http://localhost:8000**.
+Then, inside a Claude Code session, install the CLI by running:
 
-### Option 2: Use the hosted version
+```
+/clawbox setup
+```
+
+### Option 2: Hosted web UI
 
 No setup needed &mdash; just visit **[clawbox.ink](https://clawbox.ink)**.
 
@@ -69,6 +70,18 @@ clawbox search "quarterly revenue"  # Semantic search
 > **Self-hosting via pip?** Use `pip install clawbox[server]` to include all server dependencies (FastAPI, SQLAlchemy, etc.).
 
 If you want to connect ClawBox to a coding or task agent, see [`skills/clawbox/SKILL.md`](skills/clawbox/SKILL.md).
+
+### Option 4: Self-hosting with docker
+
+```bash
+git clone https://github.com/Alfra-AI/clawbox.git
+cd clawbox
+cp .env.example .env       # Edit to add your Google API key for search
+docker compose up -d
+docker compose exec app alembic upgrade head
+```
+
+ClawBox server is then available at **http://localhost:8000**.
 
 ---
 

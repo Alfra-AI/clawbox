@@ -4,24 +4,26 @@
 
 set -e
 
-# Check if clawbox is already installed
 if command -v clawbox &> /dev/null; then
     echo "clawbox CLI is already installed."
     clawbox status 2>/dev/null || true
     exit 0
 fi
 
-# Find the repo root (look for pyproject.toml)
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-
-if [ ! -f "$REPO_ROOT/pyproject.toml" ]; then
-    echo "Error: Cannot find pyproject.toml. Run this from the clawbox repo."
+echo "Installing clawbox CLI..."
+if command -v pipx &> /dev/null; then
+    pipx install clawbox
+elif command -v pip3 &> /dev/null; then
+    pip3 install clawbox
+elif command -v pip &> /dev/null; then
+    pip install clawbox
+elif command -v python3 &> /dev/null; then
+    python3 -m pip install clawbox
+else
+    echo "Error: no Python package installer found." >&2
+    echo "Install Python 3 first: https://www.python.org/downloads/" >&2
     exit 1
 fi
-
-echo "Installing clawbox CLI..."
-pip install "$REPO_ROOT"
 
 echo ""
 echo "Initializing clawbox..."
