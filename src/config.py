@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     session_secret_key: str = "change-me-to-a-random-string"
     app_url: str = "http://localhost:8000"
 
+    # Embedding queue
+    embedding_job_max_attempts: int = 3
+    embedding_job_lease_seconds: int = 900
+    embedding_worker_poll_seconds: int = 2
+    embedding_worker_batch_size: int = 1
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000

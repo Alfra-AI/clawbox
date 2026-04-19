@@ -37,6 +37,11 @@ python -m src.main
 
 The API will be available at `http://localhost:8000`.
 
+6. Run the embedding worker in a second shell:
+```bash
+python -m src.worker
+```
+
 ## Database Migrations
 
 ClawBox uses Alembic for schema changes. `Base.metadata.create_all()` is not used

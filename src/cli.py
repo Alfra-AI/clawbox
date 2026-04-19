@@ -172,8 +172,10 @@ def upload(
         embedding_status = data.get("embedding_status", "not_applicable")
         if embedding_status == "completed":
             console.print("[green]Indexed for search[/green]")
-        elif embedding_status == "pending":
-            console.print("[yellow]Indexing pending[/yellow]")
+        elif embedding_status == "queued":
+            console.print("[yellow]Queued for indexing[/yellow]")
+        elif embedding_status == "processing":
+            console.print("[yellow]Indexing in progress[/yellow]")
         elif embedding_status == "failed":
             console.print(
                 "[yellow]Embedding failed — file stored but not searchable. "
@@ -256,8 +258,10 @@ def list_files(
             embedding_status = f.get("embedding_status", "not_applicable")
             if embedding_status == "completed":
                 indexed = "[green]Yes[/green]"
-            elif embedding_status == "pending":
-                indexed = "[yellow]Pending[/yellow]"
+            elif embedding_status == "queued":
+                indexed = "[yellow]Queued[/yellow]"
+            elif embedding_status == "processing":
+                indexed = "[yellow]Processing[/yellow]"
             elif embedding_status == "failed":
                 indexed = "[red]Failed[/red]"
             else:
@@ -325,9 +329,6 @@ def embed(
     if response.status_code == 404:
         console.print("[red]File not found[/red]")
         raise typer.Exit(1)
-    elif response.status_code == 503:
-        console.print("[yellow]Embeddings require Google API key on the server[/yellow]")
-        raise typer.Exit(1)
     elif response.status_code != 200:
         console.print(f"[red]Embed failed: {response.text}[/red]")
         raise typer.Exit(1)
@@ -340,20 +341,26 @@ def embed(
     has_errors = False
     for result in data["results"]:
         label = result.get("filename") or result.get("requested_id") or result.get("id", "[unknown]")
-        if result["embedding_status"] == "pending":
+        status_value = result["embedding_status"]
+        error_value = result.get("error")
+        if status_value == "queued" and error_value is None:
             console.print(f"  [yellow]⏳[/yellow] {label}")
+        elif status_value == "processing" and error_value is None:
+            console.print(f"  [yellow]⚙[/yellow] {label}")
+        elif error_value == "already_queued":
+            console.print(f"  [dim]•[/dim] {label} (already queued)")
         else:
             has_errors = True
-            error_detail = result.get("error")
-            detail = f" ({error_detail})" if error_detail else ""
+            detail = f" ({error_value})" if error_value else ""
             console.print(f"  [red]✗[/red] {label}{detail}")
 
-    pending_count = sum(1 for r in data["results"] if r["embedding_status"] == "pending")
-    if pending_count:
+    if data["queued"]:
         console.print(
-            f"Embedding {pending_count} file(s) in background. "
+            f"Queued {data['queued']} file(s) for embedding. "
             "Use [cyan]clawbox list[/cyan] to check status."
         )
+    elif data["skipped"] and not has_errors:
+        console.print("All selected files already have active embedding jobs.")
 
     if has_errors:
         raise typer.Exit(1)
@@ -397,7 +404,7 @@ def search(
 
         console.print(table)
     elif response.status_code == 503:
-        console.print("[yellow]Search requires OpenAI API key on the server[/yellow]")
+        console.print("[yellow]Search requires a Google API key on the server[/yellow]")
         raise typer.Exit(1)
     else:
         console.print(f"[red]Search failed: {response.text}[/red]")

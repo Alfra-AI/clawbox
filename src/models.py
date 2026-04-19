@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, BigInteger
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -41,6 +41,7 @@ class Token(Base):
 
     user = relationship("User", back_populates="tokens")
     files = relationship("File", back_populates="token", cascade="all, delete-orphan")
+    embedding_jobs = relationship("EmbeddingJob", back_populates="token", cascade="all, delete-orphan")
 
     def has_storage_available(self, size_bytes: int) -> bool:
         """Check if the token has enough storage for the given size."""
@@ -60,11 +61,43 @@ class File(Base):
     size_bytes = Column(BigInteger, nullable=False)
     storage_path = Column(String(512), nullable=False)
     embedding_status = Column(String(20), nullable=False)
+    last_embedded_at = Column(DateTime, nullable=True)
+    embedding_error_code = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     token = relationship("Token", back_populates="files")
     embeddings = relationship("FileEmbedding", back_populates="file", cascade="all, delete-orphan")
+    embedding_jobs = relationship("EmbeddingJob", back_populates="file", cascade="all, delete-orphan")
+
+
+class EmbeddingJob(Base):
+    """Durable file embedding job."""
+
+    __tablename__ = "embedding_jobs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    file_id = Column(UUID(as_uuid=True), ForeignKey("files.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_id = Column(UUID(as_uuid=True), ForeignKey("tokens.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String(20), nullable=False, index=True)
+    attempt_count = Column(Integer, nullable=False, default=0)
+    max_attempts = Column(Integer, nullable=False, default=settings.embedding_job_max_attempts)
+    priority = Column(Integer, nullable=False, default=100)
+    requested_by = Column(String(20), nullable=False, default="system")
+    error_code = Column(String(100), nullable=True)
+    error_detail = Column(Text, nullable=True)
+    lease_expires_at = Column(DateTime, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    file = relationship("File", back_populates="embedding_jobs")
+    token = relationship("Token", back_populates="embedding_jobs")
+
+    __table_args__ = (
+        Index("ix_embedding_jobs_status_priority_created", "status", "priority", "created_at"),
+    )
 
 
 class FileEmbedding(Base):

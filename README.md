@@ -100,7 +100,7 @@ All endpoints (except public ones) require `Authorization: Bearer <token>`.
 | `PATCH /files/{id}` | PATCH | Yes | Move/rename a file |
 | `DELETE /files/{id}` | DELETE | Yes | Delete a file |
 | `POST /search` | POST | Yes | Semantic search across files |
-| `POST /files/embed` | POST | Yes | Generate/retry embeddings |
+| `POST /files/embed` | POST | Yes | Queue/retry embeddings |
 
 ### Sharing
 
@@ -200,7 +200,7 @@ See [.env.example](.env.example) for all options.
 └────────┘ └─────────────┘
 ```
 
-- **PostgreSQL + pgvector** &mdash; metadata, users, embeddings, search
+- **PostgreSQL + pgvector** &mdash; metadata, users, embedding jobs, embeddings, search
 - **Object storage** &mdash; file content (local filesystem, S3, MinIO, GCS, etc.)
 - **Gemini** &mdash; embeddings + multimodal indexing (optional)
 

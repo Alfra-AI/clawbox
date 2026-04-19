@@ -1,7 +1,5 @@
 """File management routes."""
 
-import asyncio
-import logging
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
@@ -14,12 +12,18 @@ from sqlalchemy.orm import Session
 from src.auth import get_current_token
 from src.config import settings
 from src.database import get_db
-from src.models import File as FileModel, FileEmbedding, SharedLink, Token
+from src.embedding_jobs import (
+    FILE_STATUS_FAILED,
+    FILE_STATUS_NOT_APPLICABLE,
+    FILE_STATUS_PROCESSING,
+    FILE_STATUS_QUEUED,
+    enqueue_embedding_job,
+    get_embeddable_files_for_selector,
+)
+from src.models import File as FileModel, SharedLink, Token
 from src.storage import get_storage_backend
-from src.embeddings import generate_and_store_embeddings
 
 router = APIRouter(prefix="/files", tags=["files"])
-logger = logging.getLogger(__name__)
 
 # Map file extensions to correct MIME types (fallback when client sends application/octet-stream)
 EXTENSION_CONTENT_TYPES = {
@@ -94,8 +98,8 @@ class EmbedFileResult(BaseModel):
 
 class BatchEmbedResponse(BaseModel):
     processed: int
-    succeeded: int
-    failed: int
+    queued: int
+    skipped: int
     results: List[EmbedFileResult]
 
 
@@ -171,7 +175,7 @@ async def upload_file(
         import os
         ext = os.path.splitext(file.filename or "")[-1].lower()
         content_type = EXTENSION_CONTENT_TYPES.get(ext, content_type)
-    embedding_status = "pending" if is_embeddable_content_type(content_type) else "not_applicable"
+    embedding_status = FILE_STATUS_QUEUED if is_embeddable_content_type(content_type) else FILE_STATUS_NOT_APPLICABLE
 
     # Parse virtual path
     default_filename = file.filename or "unnamed"
@@ -204,16 +208,11 @@ async def upload_file(
     # Update token storage usage
     token.storage_used_bytes += size_bytes
 
+    if file_record.embedding_status == FILE_STATUS_QUEUED:
+        enqueue_embedding_job(db, file_record, requested_by="upload")
+
     db.commit()
     db.refresh(file_record)
-
-    # Generate embeddings in background (don't block the upload response)
-    if file_record.embedding_status == "pending":
-        file_id = file_record.id
-        content_type_for_embed = file_record.content_type
-        asyncio.create_task(
-            _embed_in_background(file_id, content, content_type_for_embed)
-        )
 
     return FileResponse(
         id=str(file_record.id),
@@ -225,31 +224,6 @@ async def upload_file(
         created_at=file_record.created_at,
         updated_at=file_record.updated_at,
     )
-
-
-async def _embed_in_background(file_id: UUID, content: bytes, content_type: str):
-    """Generate embeddings in a background task."""
-    from src.database import SessionLocal
-
-    db = SessionLocal()
-    try:
-        file_record = db.query(FileModel).filter(FileModel.id == file_id).first()
-        if not file_record:
-            return
-
-        try:
-            success = await generate_and_store_embeddings(
-                db, file_record, content, content_type
-            )
-            file_record.embedding_status = "completed" if success else "failed"
-        except Exception:
-            logger.exception("Background embedding failed for file %s", file_id)
-            db.rollback()
-            file_record.embedding_status = "failed"
-        db.add(file_record)
-        db.commit()
-    finally:
-        db.close()
 
 
 @router.get("", response_model=FileListResponse)
@@ -301,24 +275,17 @@ async def batch_embed_files(
     token: Token = Depends(get_current_token),
     db: Session = Depends(get_db),
 ) -> BatchEmbedResponse:
-    """Embed selected files or retry all files that previously failed."""
-    if not settings.google_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Embeddings not available. Google API key not configured.",
-        )
-
-    storage = get_storage_backend()
+    """Queue selected files or retry all files that previously failed."""
     results: List[EmbedFileResult] = []
-    succeeded = 0
-    failed = 0
+    queued = 0
+    skipped = 0
 
     if request.failed_only or request.pending_only:
-        status_filter = "failed" if request.failed_only else "pending"
-        file_records = (
-            db.query(FileModel)
-            .filter(FileModel.token_id == token.id, FileModel.embedding_status == status_filter)
-            .all()
+        file_records = get_embeddable_files_for_selector(
+            db,
+            token.id,
+            failed_only=request.failed_only,
+            pending_only=request.pending_only,
         )
         requested_ids = list(dict.fromkeys(str(file_record.id) for file_record in file_records))
     else:
@@ -338,11 +305,11 @@ async def batch_embed_files(
             )
 
         for missing_id in missing_ids:
-            failed += 1
+            skipped += 1
             results.append(
                 EmbedFileResult(
                     requested_id=missing_id,
-                    embedding_status="failed",
+                    embedding_status=FILE_STATUS_FAILED,
                     error="file_not_found",
                 )
             )
@@ -350,49 +317,47 @@ async def batch_embed_files(
         file_records = [files_by_id[requested_id] for requested_id in requested_ids if requested_id in files_by_id]
 
     if not file_records and not results:
-        return BatchEmbedResponse(processed=0, succeeded=0, failed=0, results=[])
+        return BatchEmbedResponse(processed=0, queued=0, skipped=0, results=[])
 
     for file_record in file_records:
-        try:
-            content = await storage.load(file_record.storage_path)
-        except FileNotFoundError:
-            failed += 1
-            file_record.embedding_status = "failed"
-            db.add(file_record)
-            db.commit()
+        if file_record.embedding_status == FILE_STATUS_NOT_APPLICABLE:
+            skipped += 1
             results.append(
                 EmbedFileResult(
                     requested_id=str(file_record.id),
                     id=str(file_record.id),
                     filename=file_record.filename,
-                    embedding_status="failed",
-                    error="file_not_found_in_storage",
+                    embedding_status=FILE_STATUS_NOT_APPLICABLE,
+                    error="unsupported_content_type",
                 )
             )
             continue
 
-        # Clear old embeddings, mark pending, and kick off background task
-        db.query(FileEmbedding).filter(FileEmbedding.file_id == file_record.id).delete()
-        file_record.embedding_status = "pending"
-        db.add(file_record)
-        db.commit()
+        job, created = enqueue_embedding_job(db, file_record, requested_by="api")
+        if created:
+            queued += 1
+        else:
+            skipped += 1
 
-        asyncio.create_task(
-            _embed_in_background(file_record.id, content, file_record.content_type)
-        )
+        public_status = file_record.embedding_status
+        if public_status not in (FILE_STATUS_QUEUED, FILE_STATUS_PROCESSING):
+            public_status = FILE_STATUS_PROCESSING if job and job.status in ("leased", "running") else FILE_STATUS_QUEUED
         results.append(
             EmbedFileResult(
                 requested_id=str(file_record.id),
                 id=str(file_record.id),
                 filename=file_record.filename,
-                embedding_status="pending",
+                embedding_status=public_status,
+                error=None if created else "already_queued",
             )
         )
 
+    db.commit()
+
     return BatchEmbedResponse(
         processed=len(results),
-        succeeded=succeeded,
-        failed=failed,
+        queued=queued,
+        skipped=skipped,
         results=results,
     )
 

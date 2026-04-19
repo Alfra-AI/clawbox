@@ -6,10 +6,10 @@ from typing import List, Optional
 
 from google import genai
 from google.genai import types
-from sqlalchemy.orm import Session
 
 from src.config import settings
-from src.models import File, FileEmbedding
+from src.embedding_jobs import EmbeddingJobError, EmbeddingWrite
+from src.models import File
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +190,7 @@ def generate_image_caption(content: bytes, content_type: str) -> Optional[str]:
     return caption or None
 
 
-def generate_embedding(text: str) -> List[float]:
+def embed_query(text: str) -> List[float]:
     """Generate embedding for a single text query using Gemini."""
     if not settings.google_api_key:
         raise ValueError("Google API key not configured")
@@ -204,6 +204,11 @@ def generate_embedding(text: str) -> List[float]:
         ),
     )
     return list(result.embeddings[0].values)
+
+
+def generate_embedding(text: str) -> List[float]:
+    """Backward-compatible alias for query embedding."""
+    return embed_query(text)
 
 
 def generate_embeddings_batch(texts: List[str], filename: str) -> List[List[float]]:
@@ -260,14 +265,8 @@ def generate_multimodal_embedding(
     return list(result.embeddings[0].values)
 
 
-async def generate_and_store_embeddings(
-    db: Session, file: File, content: bytes, content_type: str
-) -> bool:
-    """Generate embeddings for file content and store them.
-
-    Returns True if embeddings were generated successfully (or file was empty),
-    False if embedding generation failed.
-    """
+def embed_file_content(file: File, content: bytes, content_type: str) -> List[EmbeddingWrite]:
+    """Generate the replacement embedding payload for a file."""
     # Handle multimodal files (image/video/audio) — embed directly via Gemini
     if content_type in MULTIMODAL_CONTENT_TYPES:
         caption = None
@@ -284,9 +283,12 @@ async def generate_and_store_embeddings(
                 file.filename,
                 caption=caption,
             )
-        except Exception:
+        except Exception as exc:
             logger.exception("Failed to generate multimodal embedding for file %s", file.id)
-            return False
+            raise EmbeddingJobError(
+                "embedding_provider_error",
+                f"Failed to generate multimodal embedding for {file.filename}",
+            ) from exc
 
         # Determine label for the chunk text placeholder
         if content_type in IMAGE_CONTENT_TYPES:
@@ -296,14 +298,7 @@ async def generate_and_store_embeddings(
         else:
             label = f"[audio: {file.filename}]"
 
-        file_embedding = FileEmbedding(
-            file_id=file.id,
-            chunk_index=0,
-            chunk_text=label,
-            embedding=embedding,
-        )
-        db.add(file_embedding)
-        return True
+        return [EmbeddingWrite(chunk_index=0, chunk_text=label, embedding=embedding)]
 
     # Handle text-based files — extract text, chunk, and embed
     text = None
@@ -312,42 +307,55 @@ async def generate_and_store_embeddings(
         text = extract_text_from_pdf(content)
         if text is None:
             logger.warning("Failed to extract text from PDF %s", file.id)
-            return False
+            raise EmbeddingJobError("text_extraction_failed", f"Failed to extract text from {file.filename}", retryable=False)
     elif content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         text = extract_text_from_docx(content)
         if text is None:
             logger.warning("Failed to extract text from Word doc %s", file.id)
-            return False
+            raise EmbeddingJobError("text_extraction_failed", f"Failed to extract text from {file.filename}", retryable=False)
     # Handle Excel (.xlsx)
     elif content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
         text = extract_text_from_xlsx(content)
         if text is None:
             logger.warning("Failed to extract text from Excel %s", file.id)
-            return False
+            raise EmbeddingJobError("text_extraction_failed", f"Failed to extract text from {file.filename}", retryable=False)
     # Handle PowerPoint (.pptx)
     elif content_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation":
         text = extract_text_from_pptx(content)
         if text is None:
             logger.warning("Failed to extract text from PowerPoint %s", file.id)
-            return False
+            raise EmbeddingJobError("text_extraction_failed", f"Failed to extract text from {file.filename}", retryable=False)
     # Handle CSV
     elif content_type == "text/csv":
         text = extract_text_from_csv(content)
         if text is None:
             logger.warning("Failed to extract text from CSV %s", file.id)
-            return False
-    else:
+            raise EmbeddingJobError("text_extraction_failed", f"Failed to extract text from {file.filename}", retryable=False)
+    elif (
+        content_type.startswith("text/")
+        or content_type in {"application/json", "application/xml", "text/markdown"}
+    ):
         try:
             text = content.decode("utf-8")
         except UnicodeDecodeError:
             try:
                 text = content.decode("latin-1")
-            except Exception:
+            except Exception as exc:
                 logger.warning("Failed to decode file %s for embedding", file.id)
-                return False
+                raise EmbeddingJobError(
+                    "text_extraction_failed",
+                    f"Failed to decode {file.filename} for embedding",
+                    retryable=False,
+                ) from exc
+    else:
+        raise EmbeddingJobError(
+            "unsupported_content_type",
+            f"Unsupported content type for embedding: {content_type}",
+            retryable=False,
+        )
 
     if not text or not text.strip():
-        return True  # Empty file, nothing to embed
+        return []
 
     # Chunk the text
     chunks = chunk_text(text)
@@ -355,27 +363,27 @@ async def generate_and_store_embeddings(
     # Generate embeddings
     try:
         embeddings = generate_embeddings_batch(chunks, file.filename)
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to generate embeddings for file %s", file.id)
-        return False
+        raise EmbeddingJobError(
+            "embedding_provider_error",
+            f"Failed to generate embeddings for {file.filename}",
+        ) from exc
 
-    # Store embeddings
-    for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-        file_embedding = FileEmbedding(
-            file_id=file.id,
+    return [
+        EmbeddingWrite(
             chunk_index=i,
             chunk_text=chunk,
             embedding=embedding,
         )
-        db.add(file_embedding)
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
+    ]
 
-    return True
 
-
-def search_embeddings(db: Session, token_id: str, query: str, limit: int = 10) -> List[dict]:
+def search_embeddings(db, token_id: str, query: str, limit: int = 10) -> List[dict]:
     """Search for files matching the query using vector similarity."""
     # Generate embedding for query
-    query_embedding = generate_embedding(query)
+    query_embedding = embed_query(query)
 
     # Search using pgvector cosine distance
     from src.models import FileEmbedding, File
