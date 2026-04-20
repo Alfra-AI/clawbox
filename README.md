@@ -203,6 +203,7 @@ See [.env.example](.env.example) for all options.
 - **PostgreSQL + pgvector** &mdash; metadata, users, embedding jobs, embeddings, search
 - **Object storage** &mdash; file content (local filesystem, S3, MinIO, GCS, etc.)
 - **Gemini** &mdash; embeddings + multimodal indexing (optional)
+- **Embedding worker** &mdash; separate process (`python -m src.worker`) that drains the embedding job queue; required for uploads to become searchable. See [Self-Hosting Guide](docs/self-hosting.md).
 
 ---
 
@@ -216,6 +217,8 @@ src/
 ├── auth.py           # Bearer token authentication
 ├── storage.py        # Storage backend (local/S3)
 ├── embeddings.py     # Gemini embeddings + text extraction
+├── embedding_jobs.py # Async embedding queue state machine
+├── worker.py         # Embedding job worker loop
 ├── database.py       # Database connection
 ├── cli.py            # CLI tool (clawbox command)
 ├── routes/

@@ -75,6 +75,21 @@ clawbox embed <file_id>
 clawbox embed --failed
 ```
 
+## Files stuck in Queued or Processing
+
+```
+clawbox list
+... Indexed: Queued    (never progresses)
+```
+
+The embedding worker is not running or cannot reach the database/Gemini API.
+
+- Self-hosted Docker: `docker compose ps worker` should show the `worker` service up. Tail logs with `docker compose logs -f worker`.
+- Self-hosted bare metal: start the worker process in a separate shell with `python -m src.worker`.
+- Managed (clawbox.ink): contact the operator; this is a server-side issue.
+
+A file in `Processing` whose lease has expired will be requeued automatically after `EMBEDDING_JOB_LEASE_SECONDS` (default 15 minutes).
+
 ## Invalid or expired token
 
 ```

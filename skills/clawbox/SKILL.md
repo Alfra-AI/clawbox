@@ -37,8 +37,8 @@ clawbox download <file_id>                   # Download by ID
 clawbox list                                 # List all files
 clawbox list --folder /docs/ --recursive     # List folder contents
 clawbox search "query"                       # Semantic search
-clawbox embed <file_id>                      # Generate embeddings
-clawbox embed --failed                       # Retry failed embeddings
+clawbox embed <file_id>                      # Queue embedding job
+clawbox embed --failed                       # Requeue failed embeddings
 clawbox delete <file_id>                     # Delete a file
 clawbox status                               # Check server + token health
 ```

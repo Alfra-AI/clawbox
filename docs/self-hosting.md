@@ -40,6 +40,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
 
 - PostgreSQL with pgvector
 - ClawBox app container
+- Embedding worker container (drains the embedding job queue)
 - Local filesystem storage
 
 ### Notes
@@ -47,6 +48,11 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
 - `docker compose up` does not run Alembic automatically in the current setup.
 - Re-run `docker compose exec app alembic upgrade head` after pulling schema changes.
 - Add `GOOGLE_API_KEY` to `.env` if you want semantic search and embeddings.
+  Without it, the `worker` service will still run but every job fails until the
+  key is set.
+- The `worker` service is required for uploads to become searchable. Check its
+  status with `docker compose ps worker` and tail logs via
+  `docker compose logs -f worker`.
 - Use `docker-compose.dev.yml` only when you need PostgreSQL reachable at
   `localhost:5432` from the host.
 
@@ -122,6 +128,12 @@ alembic upgrade head
 python -m src.main
 ```
 
+Start the embedding worker in a separate shell so uploads get indexed:
+
+```bash
+python -m src.worker
+```
+
 ---
 
 ## Configuration Notes
@@ -138,3 +150,6 @@ python -m src.main
 | `GOOGLE_CLIENT_SECRET` | (empty) | Google OAuth secret |
 | `SESSION_SECRET_KEY` | `change-me-to-a-random-string` | Session signing key |
 | `APP_URL` | `http://localhost:8000` | Public base URL |
+| `EMBEDDING_JOB_MAX_ATTEMPTS` | `3` | Retry budget per embedding job before it is marked failed |
+| `EMBEDDING_JOB_LEASE_SECONDS` | `900` | Lease timeout; a leased job that does not complete within this window is requeued |
+| `EMBEDDING_WORKER_POLL_SECONDS` | `2` | Idle poll interval when the queue is empty |

@@ -27,7 +27,7 @@ Authorization: Bearer <token-uuid>
 | GET | `/files/{id}` | Yes | Download file |
 | PATCH | `/files/{id}` | Yes | Move/rename file. Body: `{"path": "/new/path.txt"}` |
 | DELETE | `/files/{id}` | Yes | Delete file |
-| POST | `/files/embed` | Yes | Batch embed. Body: `{"file_ids": [...]}` or `{"failed_only": true}` |
+| POST | `/files/embed` | Yes | Queue embeddings. Body: `{"file_ids": [...]}`, `{"failed_only": true}`, or `{"pending_only": true}` |
 
 ### Search
 
@@ -66,6 +66,51 @@ Authorization: Bearer <token-uuid>
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/health` | No | Health check |
+
+## Batch Embed Response
+
+`POST /files/embed` returns:
+
+```json
+{
+  "processed": 2,
+  "queued": 1,
+  "skipped": 1,
+  "results": [
+    {
+      "requested_id": "<uuid>",
+      "id": "<uuid>",
+      "filename": "report.pdf",
+      "embedding_status": "queued",
+      "error": null
+    },
+    {
+      "requested_id": "<uuid>",
+      "id": "<uuid>",
+      "filename": "notes.txt",
+      "embedding_status": "processing",
+      "error": "already_queued"
+    }
+  ]
+}
+```
+
+- `processed` — total result entries returned
+- `queued` — jobs newly enqueued by this request
+- `skipped` — files that were not enqueued (missing, unsupported, or already queued)
+- `results[].error` — one of `already_queued`, `file_not_found`, `unsupported_content_type`, or `null` when the job was freshly enqueued
+
+## File Embedding Status
+
+The `embedding_status` field on a file progresses through:
+
+| Status | Meaning |
+|--------|---------|
+| `not_applicable` | Content type cannot be embedded |
+| `queued` | Waiting for the worker to pick it up |
+| `processing` | Worker has leased the job and is running it |
+| `completed` | Embeddings are stored and the file is searchable |
+| `failed` | Retry budget exhausted; requeue with `/files/embed` |
 
 ## Supported File Formats for Search
 

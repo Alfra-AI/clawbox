@@ -48,7 +48,7 @@ cp terraform.tfvars.example terraform.tfvars
 
 Required variables:
 - `db_password` - Secure password for RDS
-- `openai_api_key` - OpenAI API key (for semantic search)
+- `google_api_key` - Google Gemini API key (for semantic search and embeddings)
 
 ### 2. Initialize Terraform
 

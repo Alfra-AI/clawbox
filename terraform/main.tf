@@ -334,7 +334,7 @@ resource "aws_ecs_task_definition" "app" {
       { name = "STORAGE_BACKEND", value = "s3" },
       { name = "S3_BUCKET_NAME", value = aws_s3_bucket.files.id },
       { name = "AWS_REGION", value = var.aws_region },
-      { name = "OPENAI_API_KEY", value = var.openai_api_key },
+      { name = "GOOGLE_API_KEY", value = var.google_api_key },
     ]
 
     logConfiguration = {

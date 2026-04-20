@@ -91,6 +91,8 @@ clawbox/
 │   ├── database.py         # DB connection and pgvector setup
 │   ├── storage.py          # Storage backend abstraction (local/S3)
 │   ├── embeddings.py       # Gemini embeddings and text extraction
+│   ├── embedding_jobs.py   # Async embedding queue state machine
+│   ├── worker.py           # Embedding job worker loop
 │   ├── auth.py             # Bearer token authentication
 │   ├── oauth.py            # Google OAuth setup
 │   ├── cli.py              # CLI tool (typer)
@@ -117,6 +119,7 @@ clawbox/
 - **FastAPI + async** throughout. Route handlers and storage operations use `async`/`await`.
 - **Pluggable storage.** The `storage.py` module abstracts over local filesystem and any S3-compatible service (AWS S3, MinIO, GCS, R2, etc.).
 - **pgvector for embeddings.** Semantic search uses PostgreSQL's pgvector extension rather than a separate vector database.
+- **Durable embedding queue.** File embeddings run asynchronously via the `embedding_jobs` table and `src/worker.py`. Uploads enqueue a job; the worker leases, processes, and retries with a bounded attempt budget.
 - **Alembic for migrations.** Schema changes go through Alembic, never `Base.metadata.create_all()`.
 
 ---

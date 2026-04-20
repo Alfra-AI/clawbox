@@ -3,7 +3,7 @@ environment    = "prod"
 app_name       = "clawbox"
 db_username    = "clawbox"
 db_password    = "your-secure-password-here"
-openai_api_key = "sk-your-openai-api-key"
+google_api_key = "your-gemini-api-key"
 
 # Optional: adjust resources
 container_cpu    = 256

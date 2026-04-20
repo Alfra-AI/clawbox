@@ -28,8 +28,8 @@ variable "db_password" {
   sensitive   = true
 }
 
-variable "openai_api_key" {
-  description = "OpenAI API key for embeddings"
+variable "google_api_key" {
+  description = "Google Gemini API key for embeddings and semantic search"
   type        = string
   sensitive   = true
   default     = ""
